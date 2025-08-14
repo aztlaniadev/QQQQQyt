@@ -119,15 +119,30 @@ backend:
 
   - task: "Testar login com novos usuários"
     implemented: true
-    working: "NA"
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "Precisa testar se o login funciona corretamente com os novos usuários criados"
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Testado login com ambos usuários: admin@teste.com retorna token JWT e user com is_admin=true, usuario@teste.com retorna token JWT e user com is_admin=false. Ambos endpoints /auth/me funcionam corretamente."
+
+  - task: "Verificar permissões de admin"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Admin consegue acessar GET /api/admin/stats (retorna estatísticas do sistema: 8 usuários, 10 perguntas, 10 respostas, 2 respostas pendentes) e GET /api/admin/answers/pending (retorna 2 respostas pendentes). Usuário normal recebe erro 403 ao tentar acessar rotas admin, confirmando que as permissões estão funcionando corretamente."
 
 metadata:
   created_by: "main_agent"
