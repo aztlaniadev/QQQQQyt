@@ -1442,9 +1442,20 @@ def main():
     """Main test execution"""
     tester = AcodeLabAPITester()
     
-    # Check if we should run focused authentication tests
-    if len(sys.argv) > 1 and sys.argv[1] == "--auth":
-        return tester.run_authentication_test_suite()
+    # Check command line arguments for different test suites
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--auth":
+            return tester.run_authentication_test_suite()
+        elif sys.argv[1] == "--admin":
+            return tester.run_advanced_admin_test_suite()
+        elif sys.argv[1] == "--help":
+            print("Acode Lab API Test Suite")
+            print("Usage:")
+            print("  python backend_test.py           # Run full test suite")
+            print("  python backend_test.py --auth    # Run authentication tests only")
+            print("  python backend_test.py --admin   # Run advanced admin functionality tests")
+            print("  python backend_test.py --help    # Show this help")
+            return 0
     else:
         return tester.run_full_test_suite()
 
