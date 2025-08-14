@@ -960,20 +960,213 @@ const QuestionsList = () => {
   );
 };
 
-const ArticlesList = () => (
-  <div className="min-h-screen bg-black">
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Artigos</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <BookOpen className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Sistema de Artigos</h3>
-          <p className="text-gray-400">Apenas usuários Mestre e Guru podem escrever artigos...</p>
-        </CardContent>
-      </Card>
+const ArticlesList = () => {
+  const { user } = useAuth();
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newArticle, setNewArticle] = useState({
+    title: '',
+    content: '',
+    excerpt: '',
+    tags: '',
+    published: false
+  });
+
+  const canCreateArticle = user && ['Mestre', 'Guru'].includes(user.rank);
+
+  useEffect(() => {
+    fetchArticles();
+  }, []);
+
+  const fetchArticles = async () => {
+    try {
+      const response = await axios.get(`${API}/articles`);
+      setArticles(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar artigos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateArticle = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const articleData = {
+        ...newArticle,
+        tags: newArticle.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+      };
+      
+      await axios.post(`${API}/articles`, articleData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setShowCreateForm(false);
+      setNewArticle({ title: '', content: '', excerpt: '', tags: '', published: false });
+      fetchArticles();
+    } catch (error) {
+      console.error('Erro ao criar artigo:', error);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-white">Artigos</h1>
+          {canCreateArticle && (
+            <Button 
+              onClick={() => setShowCreateForm(true)}
+              className="bg-copper hover:bg-copper/90 text-black"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Artigo
+            </Button>
+          )}
+        </div>
+
+        {!canCreateArticle && user && !user.is_company && (
+          <Card className="mb-6 bg-gray-900 border-yellow-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Crown className="h-5 w-5 text-yellow-500" />
+                <p className="text-yellow-200">
+                  Apenas usuários <strong>Mestre</strong> ou <strong>Guru</strong> podem escrever artigos. 
+                  Continue participando para subir de rank!
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {showCreateForm && (
+          <Card className="mb-6 bg-gray-900 border-copper/20">
+            <CardHeader>
+              <CardTitle className="text-white">Novo Artigo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateArticle} className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Título</Label>
+                  <Input
+                    value={newArticle.title}
+                    onChange={(e) => setNewArticle(prev => ({...prev, title: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Resumo</Label>
+                  <Textarea
+                    value={newArticle.excerpt}
+                    onChange={(e) => setNewArticle(prev => ({...prev, excerpt: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    rows={2}
+                    placeholder="Breve descrição do artigo..."
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Conteúdo</Label>
+                  <Textarea
+                    value={newArticle.content}
+                    onChange={(e) => setNewArticle(prev => ({...prev, content: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    rows={10}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Tags (separadas por vírgula)</Label>
+                  <Input
+                    value={newArticle.tags}
+                    onChange={(e) => setNewArticle(prev => ({...prev, tags: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="javascript, tutorial, avançado"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="published"
+                    checked={newArticle.published}
+                    onChange={(e) => setNewArticle(prev => ({...prev, published: e.target.checked}))}
+                    className="rounded"
+                  />
+                  <Label htmlFor="published" className="text-gray-300">Publicar imediatamente</Label>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" className="bg-copper hover:bg-copper/90 text-black">
+                    {newArticle.published ? 'Publicar' : 'Salvar Rascunho'}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowCreateForm(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {loading ? (
+          <div className="text-center text-gray-400">Carregando artigos...</div>
+        ) : (
+          <div className="space-y-6">
+            {articles.map(article => (
+              <Card key={article.id} className="bg-gray-900 border-gray-700 hover:border-copper/50 transition-colors">
+                <CardContent className="p-6">
+                  <div className="mb-4">
+                    <h3 className="text-xl font-bold text-white mb-2">{article.title}</h3>
+                    <p className="text-gray-300 mb-4">{article.excerpt || article.content.substring(0, 200) + '...'}</p>
+                    
+                    {article.tags && article.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {article.tags.map(tag => (
+                          <Badge key={tag} variant="secondary" className="bg-copper/20 text-copper">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between text-sm text-gray-400">
+                      <div className="flex items-center gap-4">
+                        <span>Por {article.author_username}</span>
+                        <span>{new Date(article.created_at).toLocaleDateString('pt-BR')}</span>
+                        <div className="flex items-center gap-2">
+                          <ArrowUp className="h-4 w-4" />
+                          <span>{article.upvotes}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Eye className="h-4 w-4" />
+                          <span>{article.views}</span>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        Ler mais
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {articles.length === 0 && (
+              <div className="text-center text-gray-400 py-8">
+                Nenhum artigo publicado ainda.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Connect = () => (
   <div className="min-h-screen bg-black">
