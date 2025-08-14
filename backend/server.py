@@ -502,13 +502,17 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         return current_user
     return UserResponse(**current_user)
 
-# User Profile Routes
+# User Profile Routes - Enhanced
 @api_router.put("/users/profile")
 async def update_profile(profile_data: dict, current_user: dict = Depends(get_current_user)):
     if current_user.get("is_company"):
         raise HTTPException(status_code=403, detail="Apenas usuários podem atualizar perfil")
     
-    allowed_fields = ["bio", "location", "website", "github", "linkedin", "skills", "experience", "portfolio_projects"]
+    allowed_fields = [
+        "bio", "location", "website", "github", "linkedin", "skills", "experience", 
+        "portfolio_projects", "theme_color", "banner_image", "custom_title", 
+        "social_links", "showcase_projects", "featured_skills"
+    ]
     update_data = {k: v for k, v in profile_data.items() if k in allowed_fields}
     
     await db.users.update_one(
@@ -517,6 +521,39 @@ async def update_profile(profile_data: dict, current_user: dict = Depends(get_cu
     )
     
     return {"message": "Perfil atualizado com sucesso"}
+
+@api_router.get("/users/{user_id}/profile")
+async def get_user_profile(user_id: str):
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    # Return public profile with customizations
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "rank": user["rank"],
+        "pc_points": user["pc_points"],
+        "pcon_points": user["pcon_points"],
+        "bio": user.get("bio", ""),
+        "location": user.get("location", ""),
+        "website": user.get("website", ""),
+        "github": user.get("github", ""),
+        "linkedin": user.get("linkedin", ""),
+        "skills": user.get("skills", []),
+        "experience": user.get("experience", ""),
+        "achievements": user.get("achievements", []),
+        "theme_color": user.get("theme_color", "#D97745"),
+        "banner_image": user.get("banner_image", ""),
+        "custom_title": user.get("custom_title", ""),
+        "social_links": user.get("social_links", {}),
+        "showcase_projects": user.get("showcase_projects", []),
+        "featured_skills": user.get("featured_skills", []),
+        "portfolio_projects": user.get("portfolio_projects", []),
+        "following": len(user.get("following", [])),
+        "followers": len(user.get("followers", [])),
+        "created_at": user["created_at"]
+    }
 
 @api_router.post("/users/{user_id}/follow")
 async def follow_user(user_id: str, current_user: dict = Depends(get_current_user)):
