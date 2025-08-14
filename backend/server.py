@@ -919,8 +919,36 @@ async def get_all_users(current_user: dict = Depends(get_current_user), skip: in
     users = await db.users.find().sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     total_users = await db.users.count_documents({})
     
+    # Ensure all users have required fields for UserResponse
+    safe_users = []
+    for user in users:
+        # Fill in missing fields with defaults
+        safe_user = {
+            "id": user.get("id", ""),
+            "username": user.get("username", ""),
+            "email": user.get("email", ""),
+            "pc_points": user.get("pc_points", 0),
+            "pcon_points": user.get("pcon_points", 0),
+            "rank": user.get("rank", "Iniciante"),
+            "bio": user.get("bio", ""),
+            "location": user.get("location", ""),
+            "website": user.get("website", ""),
+            "github": user.get("github", ""),
+            "linkedin": user.get("linkedin", ""),
+            "skills": user.get("skills", []),
+            "experience": user.get("experience", ""),
+            "portfolio_projects": user.get("portfolio_projects", []),
+            "following": user.get("following", []),
+            "followers": user.get("followers", []),
+            "achievements": user.get("achievements", []),
+            "is_admin": user.get("is_admin", False),
+            "is_company": user.get("is_company", False),
+            "created_at": user.get("created_at", datetime.utcnow())
+        }
+        safe_users.append(UserResponse(**safe_user))
+    
     return {
-        "users": [UserResponse(**user) for user in users],
+        "users": safe_users,
         "total": total_users,
         "page": skip // limit + 1,
         "total_pages": (total_users + limit - 1) // limit
