@@ -53,6 +53,7 @@ class User(BaseModel):
     pc_points: int = 0  # Pontos de Classificação (reputação)
     pcon_points: int = 0  # Pontos de Conquista (moeda)
     rank: UserRank = UserRank.INICIANTE
+    is_admin: bool = False  # Flag para administrador
     created_at: datetime = Field(default_factory=datetime.utcnow)
     bio: str = ""
     location: str = ""
