@@ -294,6 +294,12 @@ class PointsUpdate(BaseModel):
     pc_points: Optional[int] = None
     pcon_points: Optional[int] = None
     
+class CompanyModeration(BaseModel):
+    company_id: str
+    action: str  # ban, unban
+    reason: str = ""
+    expires: Optional[datetime] = None
+
 # Admin Models para novas funcionalidades
 class BotQuestionCreate(BaseModel):
     bot_id: str
