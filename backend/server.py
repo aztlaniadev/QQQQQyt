@@ -78,6 +78,7 @@ class UserResponse(BaseModel):
     rank: UserRank
     bio: str
     location: str
+    is_admin: bool = False
     created_at: datetime
 
 class Question(BaseModel):
