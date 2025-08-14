@@ -647,6 +647,14 @@ async def get_question(question_id: str):
     
     return Question(**question)
 
+@api_router.post("/questions/{question_id}/view")
+async def increment_question_views(question_id: str):
+    await db.questions.update_one(
+        {"id": question_id},
+        {"$inc": {"views": 1}}
+    )
+    return {"message": "View registrada"}
+
 # Answer Routes
 @api_router.post("/answers", response_model=Answer)
 async def create_answer(answer_data: AnswerCreate, current_user: dict = Depends(get_current_user)):
