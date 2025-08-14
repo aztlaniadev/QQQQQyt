@@ -2639,6 +2639,105 @@ const AdminPanel = () => {
           </Dialog>
         )}
 
+        {/* Bot Content Creation Modal */}
+        {showBotContentModal && selectedUser && (
+          <Dialog open={showBotContentModal} onOpenChange={setShowBotContentModal}>
+            <DialogContent className="bg-gray-900 border-copper/20 max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-white">Criar Conteúdo para: {selectedUser.username}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreateBotContent} className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Tipo de Conteúdo</Label>
+                  <Select value={botContentForm.type} onValueChange={(value) => setBotContentForm(prev => ({...prev, type: value}))}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="question">Pergunta</SelectItem>
+                      <SelectItem value="answer">Resposta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {botContentForm.type === 'question' ? (
+                  <>
+                    <div>
+                      <Label className="text-gray-300">Título da Pergunta</Label>
+                      <Input
+                        value={botContentForm.title}
+                        onChange={(e) => setBotContentForm(prev => ({...prev, title: e.target.value}))}
+                        className="bg-gray-800 border-gray-700 text-white"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Tags (separadas por vírgula)</Label>
+                      <Input
+                        value={botContentForm.tags}
+                        onChange={(e) => setBotContentForm(prev => ({...prev, tags: e.target.value}))}
+                        className="bg-gray-800 border-gray-700 text-white"
+                        placeholder="javascript, react, node"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <Label className="text-gray-300">Selecionar Pergunta</Label>
+                    <Select value={botContentForm.question_id} onValueChange={(value) => setBotContentForm(prev => ({...prev, question_id: value}))}>
+                      <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                        <SelectValue placeholder="Selecione uma pergunta" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {questions.slice(0, 20).map(question => (
+                          <SelectItem key={question.id} value={question.id}>
+                            {question.title.substring(0, 50)}...
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                <div>
+                  <Label className="text-gray-300">Conteúdo</Label>
+                  <Textarea
+                    value={botContentForm.content}
+                    onChange={(e) => setBotContentForm(prev => ({...prev, content: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    rows={6}
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <Label className="text-gray-300">Código (opcional)</Label>
+                  <Textarea
+                    value={botContentForm.code}
+                    onChange={(e) => setBotContentForm(prev => ({...prev, code: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white font-mono"
+                    rows={4}
+                    placeholder="// Código exemplo aqui"
+                  />
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button type="submit" className="bg-copper hover:bg-copper/90 text-black">
+                    Criar {botContentForm.type === 'question' ? 'Pergunta' : 'Resposta'}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowBotContentModal(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+
         {/* Company Management Modal */}
         {showCompanyModal && selectedCompany && (
           <Dialog open={showCompanyModal} onOpenChange={setShowCompanyModal}>
