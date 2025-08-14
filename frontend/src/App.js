@@ -1654,20 +1654,241 @@ const Jobs = () => (
   </div>
 );
 
-const AdminPanel = () => (
-  <div className="min-h-screen bg-black">
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Painel de Administração</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <Crown className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Admin Panel</h3>
-          <p className="text-gray-400">Painel para validação de respostas...</p>
-        </CardContent>
-      </Card>
+const AdminPanel = () => {
+  const { user } = useAuth();
+  const [pendingAnswers, setPendingAnswers] = useState([]);
+  const [stats, setStats] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.is_admin) {
+      fetchPendingAnswers();
+      fetchAdminStats();
+    }
+  }, [user]);
+
+  const fetchPendingAnswers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API}/admin/answers/pending`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPendingAnswers(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar respostas pendentes:', error);
+    }
+  };
+
+  const fetchAdminStats = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API}/admin/stats`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStats(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleValidateAnswer = async (answerId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/admin/answers/${answerId}/validate`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Remove from pending list
+      setPendingAnswers(prev => prev.filter(answer => answer.id !== answerId));
+      
+      // Refresh stats
+      fetchAdminStats();
+      
+      alert('Resposta validada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao validar resposta:', error);
+      alert('Erro ao validar resposta.');
+    }
+  };
+
+  const handleRejectAnswer = async (answerId) => {
+    if (!confirm('Tem certeza que deseja rejeitar esta resposta? Ela será removida permanentemente.')) {
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/admin/answers/${answerId}/reject`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Remove from pending list
+      setPendingAnswers(prev => prev.filter(answer => answer.id !== answerId));
+      
+      // Refresh stats
+      fetchAdminStats();
+      
+      alert('Resposta rejeitada e removida.');
+    } catch (error) {
+      console.error('Erro ao rejeitar resposta:', error);
+      alert('Erro ao rejeitar resposta.');
+    }
+  };
+
+  if (!user?.is_admin) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Card className="bg-gray-900 border-red-500/20">
+          <CardContent className="p-8 text-center">
+            <Crown className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Acesso Negado</h3>
+            <p className="text-gray-400 mb-4">Apenas administradores podem acessar esta área.</p>
+            <Link to="/dashboard">
+              <Button className="bg-copper hover:bg-copper/90 text-black">
+                Voltar ao Dashboard
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex items-center gap-3 mb-8">
+          <Crown className="h-8 w-8 text-copper" />
+          <h1 className="text-3xl font-bold text-white">Painel de Administração</h1>
+        </div>
+
+        {/* Stats Grid */}
+        {!loading && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            <Card className="bg-gray-900 border-copper/20">
+              <CardContent className="p-4 text-center">
+                <Users className="h-6 w-6 text-blue-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{stats.total_users || 0}</p>
+                <p className="text-xs text-gray-400">Usuários</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-gray-900 border-copper/20">
+              <CardContent className="p-4 text-center">
+                <Building className="h-6 w-6 text-green-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{stats.total_companies || 0}</p>
+                <p className="text-xs text-gray-400">Empresas</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-gray-900 border-copper/20">
+              <CardContent className="p-4 text-center">
+                <MessageSquare className="h-6 w-6 text-purple-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{stats.total_questions || 0}</p>
+                <p className="text-xs text-gray-400">Perguntas</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-gray-900 border-copper/20">
+              <CardContent className="p-4 text-center">
+                <Check className="h-6 w-6 text-amber-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{stats.total_answers || 0}</p>
+                <p className="text-xs text-gray-400">Respostas</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-gray-900 border-copper/20">
+              <CardContent className="p-4 text-center">
+                <Clock className="h-6 w-6 text-orange-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{stats.pending_answers || 0}</p>
+                <p className="text-xs text-gray-400">Pendentes</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-gray-900 border-copper/20">
+              <CardContent className="p-4 text-center">
+                <BookOpen className="h-6 w-6 text-cyan-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{stats.total_articles || 0}</p>
+                <p className="text-xs text-gray-400">Artigos</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Pending Answers Section */}
+        <Card className="bg-gray-900 border-copper/20">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Clock className="h-5 w-5 text-orange-400" />
+              Respostas Pendentes de Validação ({pendingAnswers.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center text-gray-400 py-8">Carregando respostas pendentes...</div>
+            ) : pendingAnswers.length === 0 ? (
+              <div className="text-center text-gray-400 py-8">
+                <Check className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhuma resposta pendente de validação!</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingAnswers.map(answer => (
+                  <Card key={answer.id} className="bg-gray-800 border-gray-700">
+                    <CardContent className="p-4">
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm text-gray-400">
+                            Resposta de <strong className="text-white">{answer.author_username}</strong>
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(answer.created_at).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                        
+                        <div className="mb-3">
+                          <p className="text-white whitespace-pre-wrap">{answer.content}</p>
+                          {answer.code && (
+                            <div className="mt-3 p-3 bg-black rounded border border-gray-600">
+                              <pre className="text-sm text-gray-300 font-mono overflow-x-auto">
+                                <code>{answer.code}</code>
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => handleValidateAnswer(answer.id)}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          size="sm"
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Validar
+                        </Button>
+                        <Button 
+                          onClick={() => handleRejectAnswer(answer.id)}
+                          variant="destructive"
+                          size="sm"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Rejeitar
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Company Register placeholder
 const CompanyRegister = () => (
