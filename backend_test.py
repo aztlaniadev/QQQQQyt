@@ -1254,6 +1254,77 @@ class AcodeLabAPITester:
             return True
         return False
 
+    def run_advanced_admin_test_suite(self):
+        """Run comprehensive advanced admin functionality tests"""
+        self.log("🚀 Starting Advanced Admin Functionality Test Suite")
+        self.log(f"   Base URL: {self.base_url}")
+        
+        # Test sequence focused on advanced admin features
+        tests = [
+            ("Health Check", self.test_health_check),
+            ("Admin Login (admin@teste.com)", self.test_admin_login),
+            ("Normal User Login (usuario@teste.com)", self.test_normal_user_login),
+            ("Admin Auth Me", self.test_admin_auth_me),
+            ("Normal User Auth Me", self.test_normal_user_auth_me),
+            
+            # Advanced Admin Endpoints
+            ("Admin Get All Users", self.test_admin_get_users),
+            ("Admin Get All Companies", self.test_admin_get_companies),
+            ("Admin Get Advanced Stats", self.test_admin_get_advanced_stats),
+            
+            # Bot Creation
+            ("Admin Create Bot User", self.test_admin_create_bot),
+            
+            # User Moderation
+            ("Admin Ban User", self.test_admin_moderate_user_ban),
+            ("Admin Unban User", self.test_admin_moderate_user_unban),
+            ("Admin Mute User", self.test_admin_moderate_user_mute),
+            ("Admin Silence User", self.test_admin_moderate_user_silence),
+            ("Admin Update User Points", self.test_admin_update_user_points),
+            
+            # Company Moderation
+            ("Create Test Company", self.test_admin_create_test_company),
+            ("Admin Ban Company", self.test_admin_moderate_company_ban),
+            ("Admin Unban Company", self.test_admin_moderate_company_unban),
+            
+            # Permanent Deletion
+            ("Admin Delete User (Bot)", self.test_admin_delete_user),
+            ("Admin Delete Company", self.test_admin_delete_company),
+            
+            # Permission Tests
+            ("Normal User Cannot Access Admin Endpoints", self.test_normal_user_cannot_access_admin_endpoints),
+        ]
+        
+        self.log("\n" + "="*80)
+        self.log("RUNNING ADVANCED ADMIN FUNCTIONALITY TESTS")
+        self.log("="*80)
+        
+        for test_name, test_func in tests:
+            self.log(f"\n--- {test_name} ---")
+            try:
+                test_func()
+            except Exception as e:
+                self.log(f"❌ FAILED - {test_name} - Exception: {str(e)}", "ERROR")
+            
+            # Small delay between tests
+            time.sleep(0.5)
+        
+        # Final results
+        self.log("\n" + "="*80)
+        self.log("ADVANCED ADMIN TEST RESULTS")
+        self.log("="*80)
+        self.log(f"📊 Tests Run: {self.tests_run}")
+        self.log(f"✅ Tests Passed: {self.tests_passed}")
+        self.log(f"❌ Tests Failed: {self.tests_run - self.tests_passed}")
+        self.log(f"📈 Success Rate: {(self.tests_passed/self.tests_run*100):.1f}%")
+        
+        if self.tests_passed == self.tests_run:
+            self.log("🎉 ALL ADVANCED ADMIN TESTS PASSED!")
+            return 0
+        else:
+            self.log("⚠️  SOME ADVANCED ADMIN TESTS FAILED")
+            return 1
+
     def run_authentication_test_suite(self):
         """Run focused authentication tests for the specific user credentials"""
         self.log("🚀 Starting Authentication Test Suite for Test Users")
