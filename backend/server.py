@@ -107,6 +107,9 @@ class Answer(BaseModel):
     upvotes: int = 0
     downvotes: int = 0
     is_accepted: bool = False
+    is_validated: bool = False  # Validado por administrador
+    validated_by: Optional[str] = None  # ID do admin que validou
+    validated_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
