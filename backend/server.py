@@ -910,7 +910,255 @@ async def get_user_vote(user_id: str, target_id: str):
     vote = await db.votes.find_one({"user_id": user_id, "target_id": target_id})
     return {"vote_type": vote["vote_type"] if vote else None}
 
-# Admin Routes
+# Enhanced Admin Routes
+@api_router.get("/admin/users")
+async def get_all_users(current_user: dict = Depends(get_current_user), skip: int = 0, limit: int = 50):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    users = await db.users.find().sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total_users = await db.users.count_documents({})
+    
+    return {
+        "users": [UserResponse(**user) for user in users],
+        "total": total_users,
+        "page": skip // limit + 1,
+        "total_pages": (total_users + limit - 1) // limit
+    }
+
+@api_router.get("/admin/companies")
+async def get_all_companies(current_user: dict = Depends(get_current_user), skip: int = 0, limit: int = 50):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    companies = await db.companies.find().sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total_companies = await db.companies.count_documents({})
+    
+    return {
+        "companies": companies,
+        "total": total_companies,
+        "page": skip // limit + 1,
+        "total_pages": (total_companies + limit - 1) // limit
+    }
+
+@api_router.post("/admin/create-bot")
+async def create_bot_user(bot_data: BotUserCreate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    # Check if email or username already exists
+    existing_user = await db.users.find_one({"$or": [{"email": bot_data.email}, {"username": bot_data.username}]})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email ou username já existe")
+    
+    # Create bot user
+    bot_user = User(
+        username=bot_data.username,
+        email=bot_data.email,
+        password_hash=hash_password("bot_password_" + str(uuid.uuid4())),  # Random password
+        pc_points=bot_data.pc_points,
+        pcon_points=bot_data.pcon_points,
+        rank=bot_data.rank,
+        is_bot=True,
+        bio=bot_data.bio or f"Bot criado para engajamento - {bot_data.username}",
+        location=bot_data.location,
+        skills=bot_data.skills,
+        achievements=["bot_account"]
+    )
+    
+    await db.users.insert_one(bot_user.dict())
+    return {"message": f"Bot {bot_data.username} criado com sucesso!", "bot_id": bot_user.id}
+
+@api_router.post("/admin/moderate-user")
+async def moderate_user(moderation: UserModeration, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    user = await db.users.find_one({"id": moderation.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    update_data = {}
+    
+    if moderation.action == "ban":
+        update_data = {
+            "is_banned": True,
+            "ban_reason": moderation.reason,
+            "ban_expires": moderation.expires
+        }
+    elif moderation.action == "unban":
+        update_data = {
+            "is_banned": False,
+            "ban_reason": "",
+            "ban_expires": None
+        }
+    elif moderation.action == "mute":
+        update_data = {
+            "is_muted": True,
+            "ban_reason": moderation.reason,
+            "ban_expires": moderation.expires
+        }
+    elif moderation.action == "unmute":
+        update_data = {
+            "is_muted": False
+        }
+    elif moderation.action == "silence":
+        update_data = {
+            "is_silenced": True,
+            "ban_reason": moderation.reason,
+            "ban_expires": moderation.expires
+        }
+    elif moderation.action == "unsilence":
+        update_data = {
+            "is_silenced": False
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Ação inválida")
+    
+    await db.users.update_one({"id": moderation.user_id}, {"$set": update_data})
+    
+    return {"message": f"Usuário {moderation.action}do com sucesso!"}
+
+@api_router.post("/admin/update-points")
+async def update_user_points_admin(points_update: PointsUpdate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    user = await db.users.find_one({"id": points_update.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    update_data = {}
+    if points_update.pc_points is not None:
+        update_data["pc_points"] = max(0, points_update.pc_points)
+        update_data["rank"] = calculate_rank(points_update.pc_points).value
+    
+    if points_update.pcon_points is not None:
+        update_data["pcon_points"] = max(0, points_update.pcon_points)
+    
+    await db.users.update_one({"id": points_update.user_id}, {"$set": update_data})
+    
+    return {"message": "Pontos atualizados com sucesso!"}
+
+@api_router.post("/admin/moderate-company")
+async def moderate_company(moderation: CompanyModeration, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    company = await db.companies.find_one({"id": moderation.company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    
+    update_data = {}
+    
+    if moderation.action == "ban":
+        update_data = {
+            "is_banned": True,
+            "ban_reason": moderation.reason,
+            "ban_expires": moderation.expires
+        }
+    elif moderation.action == "unban":
+        update_data = {
+            "is_banned": False,
+            "ban_reason": "",
+            "ban_expires": None
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Ação inválida para empresa")
+    
+    await db.companies.update_one({"id": moderation.company_id}, {"$set": update_data})
+    
+    return {"message": f"Empresa {moderation.action}ida com sucesso!"}
+
+@api_router.delete("/admin/users/{user_id}")
+async def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    # Delete user and all related content
+    await db.users.delete_one({"id": user_id})
+    await db.questions.delete_many({"author_id": user_id})
+    await db.answers.delete_many({"author_id": user_id})
+    await db.articles.delete_many({"author_id": user_id})
+    await db.posts.delete_many({"author_id": user_id})
+    await db.comments.delete_many({"author_id": user_id})
+    await db.votes.delete_many({"user_id": user_id})
+    
+    return {"message": "Usuário e todo seu conteúdo removidos permanentemente"}
+
+@api_router.delete("/admin/companies/{company_id}")
+async def delete_company(company_id: str, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    company = await db.companies.find_one({"id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    
+    # Delete company and all related content
+    await db.companies.delete_one({"id": company_id})
+    await db.jobs.delete_many({"company_id": company_id})
+    
+    return {"message": "Empresa e todo seu conteúdo removidos permanentemente"}
+
+@api_router.get("/admin/advanced-stats")
+async def get_advanced_admin_stats(current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    # Basic stats
+    total_users = await db.users.count_documents({})
+    total_companies = await db.companies.count_documents({})
+    total_questions = await db.questions.count_documents({})
+    total_answers = await db.answers.count_documents({})
+    pending_answers = await db.answers.count_documents({"is_validated": False})
+    total_articles = await db.articles.count_documents({"published": True})
+    
+    # Advanced stats
+    banned_users = await db.users.count_documents({"is_banned": True})
+    muted_users = await db.users.count_documents({"is_muted": True})
+    silenced_users = await db.users.count_documents({"is_silenced": True})
+    bot_users = await db.users.count_documents({"is_bot": True})
+    banned_companies = await db.companies.count_documents({"is_banned": True})
+    
+    # Activity stats
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    active_today = await db.users.count_documents({"last_active": {"$gte": today}})
+    
+    # Top users by PC
+    top_users = await db.users.find({"is_banned": False}).sort("pc_points", -1).limit(10).to_list(10)
+    
+    return {
+        "basic_stats": {
+            "total_users": total_users,
+            "total_companies": total_companies,
+            "total_questions": total_questions,
+            "total_answers": total_answers,
+            "pending_answers": pending_answers,
+            "total_articles": total_articles
+        },
+        "moderation_stats": {
+            "banned_users": banned_users,
+            "muted_users": muted_users,
+            "silenced_users": silenced_users,
+            "bot_users": bot_users,
+            "banned_companies": banned_companies
+        },
+        "activity_stats": {
+            "active_today": active_today
+        },
+        "top_users": [{
+            "id": user["id"],
+            "username": user["username"],
+            "pc_points": user["pc_points"],
+            "rank": user["rank"],
+            "is_bot": user.get("is_bot", False)
+        } for user in top_users]
+    }
 @api_router.get("/admin/answers/pending")
 async def get_pending_answers(current_user: dict = Depends(get_current_user)):
     if not current_user.get("is_admin", False):
