@@ -913,37 +913,39 @@ const QuestionsList = () => {
             {filteredQuestions.map(question => (
               <Card key={question.id} className="bg-gray-900 border-gray-700 hover:border-copper/50 transition-colors">
                 <CardContent className="p-6">
-                  <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white mb-2">{question.title}</h3>
-                      <p className="text-gray-300 mb-3 line-clamp-3">{question.content}</p>
-                      
-                      {question.tags && question.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {question.tags.map(tag => (
-                            <Badge key={tag} variant="secondary" className="bg-copper/20 text-copper">
-                              {tag}
-                            </Badge>
-                          ))}
+                      <Link to={`/perguntas/${question.id}`} className="block hover:bg-gray-800 transition-colors rounded p-2">
+                        <h3 className="text-lg font-semibold text-white mb-2">{question.title}</h3>
+                        <p className="text-gray-300 mb-3 line-clamp-3">{question.content}</p>
+                        
+                        {question.tags && question.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {question.tags.map(tag => (
+                              <Badge key={tag} variant="secondary" className="bg-copper/20 text-copper">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                          <span>Por {question.author_username}</span>
+                          <span>{new Date(question.created_at).toLocaleDateString('pt-BR')}</span>
+                          <div className="flex items-center gap-2">
+                            <ArrowUp className="h-4 w-4" />
+                            <span>{question.upvotes}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4" />
+                            <span>{question.answers_count}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Eye className="h-4 w-4" />
+                            <span>{question.views}</span>
+                          </div>
                         </div>
-                      )}
-                      
-                      <div className="flex items-center gap-4 text-sm text-gray-400">
-                        <span>Por {question.author_username}</span>
-                        <span>{new Date(question.created_at).toLocaleDateString('pt-BR')}</span>
-                        <div className="flex items-center gap-2">
-                          <ArrowUp className="h-4 w-4" />
-                          <span>{question.upvotes}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4" />
-                          <span>{question.answers_count}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Eye className="h-4 w-4" />
-                          <span>{question.views}</span>
-                        </div>
-                      </div>
+                      </Link>
                     </div>
                   </div>
                 </CardContent>
