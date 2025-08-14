@@ -807,10 +807,80 @@ class AcodeLabAPITester:
             self.log("⚠️  SOME AUTHENTICATION TESTS FAILED")
             return 1
 
+    def run_full_test_suite(self):
+        """Run the complete test suite"""
+        self.log("🚀 Starting Acode Lab API Test Suite")
+        self.log(f"   Base URL: {self.base_url}")
+        
+        # Test sequence
+        tests = [
+            ("Health Check", self.test_health_check),
+            ("User Registration", self.test_register_user),
+            ("User Login", self.test_login_user),
+            ("Get Current User", self.test_get_current_user),
+            ("Create Question", self.test_create_question),
+            ("Get Questions List", self.test_get_questions),
+            ("Get Question by ID", self.test_get_question_by_id),
+            ("Create Answer", self.test_create_answer),
+            ("Get Answers", self.test_get_answers),
+            ("Vote on Question", self.test_vote_on_question),
+            ("Vote on Answer", self.test_vote_on_answer),
+            ("Accept Answer", self.test_accept_answer),
+            ("Get User Vote", self.test_get_user_vote),
+            ("Get User Stats", self.test_get_user_stats),
+            # Admin validation system tests
+            ("Admin Login", self.test_admin_login),
+            ("Normal User Login", self.test_normal_user_login),
+            ("Admin Auth Me", self.test_admin_auth_me),
+            ("Normal User Auth Me", self.test_normal_user_auth_me),
+            ("Admin Get Stats", self.test_admin_get_stats),
+            ("Normal User Create Answer (No Points)", self.test_normal_user_create_answer_no_points),
+            ("Admin Get Pending Answers", self.test_admin_get_pending_answers),
+            ("Normal User Cannot Access Admin Stats", self.test_normal_user_cannot_access_admin_stats),
+            ("Normal User Cannot Access Admin Routes", self.test_normal_user_cannot_access_admin_routes),
+            ("Admin Validate Answer", self.test_admin_validate_answer),
+            ("Admin Reject Answer", self.test_admin_reject_answer),
+        ]
+        
+        self.log("\n" + "="*60)
+        self.log("RUNNING TESTS")
+        self.log("="*60)
+        
+        for test_name, test_func in tests:
+            self.log(f"\n--- {test_name} ---")
+            try:
+                test_func()
+            except Exception as e:
+                self.log(f"❌ FAILED - {test_name} - Exception: {str(e)}", "ERROR")
+            
+            # Small delay between tests
+            time.sleep(0.5)
+        
+        # Final results
+        self.log("\n" + "="*60)
+        self.log("TEST RESULTS")
+        self.log("="*60)
+        self.log(f"📊 Tests Run: {self.tests_run}")
+        self.log(f"✅ Tests Passed: {self.tests_passed}")
+        self.log(f"❌ Tests Failed: {self.tests_run - self.tests_passed}")
+        self.log(f"📈 Success Rate: {(self.tests_passed/self.tests_run*100):.1f}%")
+        
+        if self.tests_passed == self.tests_run:
+            self.log("🎉 ALL TESTS PASSED!")
+            return 0
+        else:
+            self.log("⚠️  SOME TESTS FAILED")
+            return 1
+
 def main():
     """Main test execution"""
     tester = AcodeLabAPITester()
-    return tester.run_full_test_suite()
+    
+    # Check if we should run focused authentication tests
+    if len(sys.argv) > 1 and sys.argv[1] == "--auth":
+        return tester.run_authentication_test_suite()
+    else:
+        return tester.run_full_test_suite()
 
 if __name__ == "__main__":
     sys.exit(main())
