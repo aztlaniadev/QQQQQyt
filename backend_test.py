@@ -1071,23 +1071,53 @@ class AcodeLabAPITester:
         if self.test_data.get('normal_user_token'):
             self.token = self.test_data['normal_user_token']
         
-        admin_endpoints = [
-            ("admin/users", "GET"),
-            ("admin/companies", "GET"),
-            ("admin/advanced-stats", "GET"),
-            ("admin/create-bot", "POST"),
-            ("admin/moderate-user", "POST"),
-            ("admin/update-points", "POST")
+        # Test GET endpoints
+        get_endpoints = [
+            "admin/users",
+            "admin/companies", 
+            "admin/advanced-stats"
         ]
         
         all_blocked = True
         
-        for endpoint, method in admin_endpoints:
-            test_data = {"test": "data"} if method == "POST" else None
-            
+        for endpoint in get_endpoints:
             success, response = self.run_test(
                 f"Normal User Access {endpoint} (Should Fail)",
-                method,
+                "GET",
+                endpoint,
+                403  # Should be forbidden
+            )
+            
+            if not success:
+                all_blocked = False
+                self.log(f"   ❌ Endpoint {endpoint} not properly protected")
+            else:
+                self.log(f"   ✅ Endpoint {endpoint} correctly blocked")
+        
+        # Test POST endpoints with proper data structures
+        post_endpoints = [
+            ("admin/create-bot", {
+                "username": "test_bot",
+                "email": "test@bot.com"
+            }),
+            ("admin/moderate-user", {
+                "user_id": "test-id",
+                "action": "ban"
+            }),
+            ("admin/update-points", {
+                "user_id": "test-id",
+                "pc_points": 100
+            }),
+            ("admin/moderate-company", {
+                "company_id": "test-id",
+                "action": "ban"
+            })
+        ]
+        
+        for endpoint, test_data in post_endpoints:
+            success, response = self.run_test(
+                f"Normal User Access {endpoint} (Should Fail)",
+                "POST",
                 endpoint,
                 403,  # Should be forbidden
                 data=test_data
