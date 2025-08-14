@@ -294,6 +294,41 @@ class PointsUpdate(BaseModel):
     pc_points: Optional[int] = None
     pcon_points: Optional[int] = None
     
+# Admin Models para novas funcionalidades
+class BotQuestionCreate(BaseModel):
+    bot_id: str
+    title: str
+    content: str
+    code: str = ""
+    tags: List[str] = []
+
+class BotAnswerCreate(BaseModel):
+    bot_id: str
+    question_id: str
+    content: str
+    code: str = ""
+
+class ProfileCustomization(BaseModel):
+    user_id: str
+    theme_color: str = "#D97745"  # copper default
+    banner_image: str = ""
+    custom_title: str = ""
+    social_links: dict = {}
+    showcase_projects: List[str] = []
+    featured_skills: List[str] = []
+
+class WeeklyPortfolio(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    title: str
+    description: str
+    project_url: str = ""
+    image_url: str = ""
+    technologies: List[str] = []
+    featured_week: str  # YYYY-WW format
+    votes: int = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 class CompanyModeration(BaseModel):
     company_id: str
     action: str  # ban, unban
