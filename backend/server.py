@@ -60,7 +60,14 @@ class User(BaseModel):
     rank: UserRank = UserRank.INICIANTE
     is_admin: bool = False
     is_company: bool = False
+    is_bot: bool = False
+    is_banned: bool = False
+    is_muted: bool = False
+    is_silenced: bool = False
+    ban_reason: str = ""
+    ban_expires: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_active: datetime = Field(default_factory=datetime.utcnow)
     bio: str = ""
     location: str = ""
     website: str = ""
