@@ -1382,15 +1382,171 @@ const Home = () => {
   );
 };
 
-// Protected Route wrapper
-const ProtectedRoute = ({ children }) => {
+// Admin Panel Component
+const AdminPanel = () => {
   const { user } = useAuth();
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  const [pendingAnswers, setPendingAnswers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.is_admin) {
+      fetchPendingAnswers();
+    }
+  }, [user]);
+
+  const fetchPendingAnswers = async () => {
+    try {
+      const response = await axios.get(`${API}/admin/answers/pending`);
+      setPendingAnswers(response.data);
+    } catch (error) {
+      console.error('Error fetching pending answers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleValidateAnswer = async (answerId) => {
+    try {
+      await axios.post(`${API}/admin/answers/${answerId}/validate`);
+      setPendingAnswers(pendingAnswers.filter(answer => answer.id !== answerId));
+    } catch (error) {
+      console.error('Error validating answer:', error);
+    }
+  };
+
+  const handleRejectAnswer = async (answerId) => {
+    try {
+      await axios.post(`${API}/admin/answers/${answerId}/reject`);
+      setPendingAnswers(pendingAnswers.filter(answer => answer.id !== answerId));
+    } catch (error) {
+      console.error('Error rejecting answer:', error);
+    }
+  };
+
+  if (!user?.is_admin) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Acesso Negado</h2>
+          <p className="text-gray-400 mb-4">Apenas administradores podem acessar esta página.</p>
+          <Link to="/perguntas">
+            <Button className="bg-copper hover:bg-copper/90 text-black">
+              Voltar às Perguntas
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
   }
-  
-  return children;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-copper"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-white">Painel de Administração</h1>
+          <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+            Administrador
+          </Badge>
+        </div>
+
+        <Card className="bg-gray-900 border-copper/20 mb-6">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <MessageSquare className="h-5 w-5 mr-2 text-copper" />
+              Respostas Pendentes de Validação ({pendingAnswers.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pendingAnswers.length === 0 ? (
+              <div className="text-center py-8">
+                <Check className="h-12 w-12 text-green-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">
+                  Todas as respostas foram validadas!
+                </h3>
+                <p className="text-gray-400">
+                  Não há respostas pendentes de validação no momento.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingAnswers.map((answer) => (
+                  <Card key={answer.id} className="bg-gray-800 border-gray-700">
+                    <CardContent className="p-4">
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-gray-400">
+                            Resposta de <span className="text-copper">{answer.author_username}</span>
+                          </span>
+                          <span className="text-sm text-gray-400">
+                            {new Date(answer.created_at).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400">
+                          Pendente
+                        </Badge>
+                      </div>
+                      
+                      <div className="text-gray-300 mb-4 whitespace-pre-wrap">
+                        {answer.content}
+                      </div>
+                      
+                      <div className="flex space-x-3">
+                        <Button
+                          onClick={() => handleValidateAnswer(answer.id)}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          size="sm"
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Validar (dar pontos)
+                        </Button>
+                        <Button
+                          onClick={() => handleRejectAnswer(answer.id)}
+                          variant="destructive"
+                          size="sm"
+                        >
+                          Rejeitar (remover)
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-900 border-copper/20">
+          <CardHeader>
+            <CardTitle className="text-white">Informações do Sistema</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-copper">{pendingAnswers.length}</h3>
+                <p className="text-gray-400">Respostas Pendentes</p>
+              </div>
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-green-400">Sistema Ativo</h3>
+                <p className="text-gray-400">Status do Sistema</p>
+              </div>
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-blue-400">Admin</h3>
+                <p className="text-gray-400">Seu Nível de Acesso</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 };
 
 // Main App Component
