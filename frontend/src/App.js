@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
-import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import "./App.css";
 
@@ -24,7 +24,8 @@ import {
   LogOut,
   Plus,
   Check,
-  User
+  User,
+  Search
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -487,6 +488,472 @@ const NewQuestionForm = ({ onSuccess, onCancel }) => {
   );
 };
 
+// Answer Form Component
+const AnswerForm = ({ questionId, onSuccess }) => {
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await axios.post(`${API}/answers`, {
+        content,
+        question_id: questionId
+      });
+      
+      onSuccess(response.data);
+      setContent('');
+    } catch (error) {
+      console.error('Error creating answer:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="bg-gray-900 border-copper/20 mt-6">
+      <CardHeader>
+        <CardTitle className="text-white">Sua Resposta</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="bg-gray-800 border-gray-700 text-white"
+            placeholder="Compartilhe seu conhecimento e ajude a comunidade..."
+            rows={6}
+            required
+          />
+          <Button
+            type="submit"
+            className="bg-copper hover:bg-copper/90 text-black"
+            disabled={loading}
+          >
+            {loading ? 'Publicando...' : 'Publicar Resposta'}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Answer Card Component
+const AnswerCard = ({ answer, questionAuthorId, onAccepted, onUserUpdate }) => {
+  const { user, updateUser } = useAuth();
+  const [userVote, setUserVote] = useState(null);
+  const [votes, setVotes] = useState(answer.upvotes - answer.downvotes);
+  const [isAccepted, setIsAccepted] = useState(answer.is_accepted);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserVote();
+    }
+  }, [user, answer.id]);
+
+  const fetchUserVote = async () => {
+    try {
+      const response = await axios.get(`${API}/users/${user.id}/votes/${answer.id}`);
+      setUserVote(response.data.vote_type);
+    } catch (error) {
+      console.error('Error fetching user vote:', error);
+    }
+  };
+
+  const handleVote = async (voteType) => {
+    if (!user || user.id === answer.author_id) return;
+
+    try {
+      await axios.post(`${API}/vote`, {
+        target_id: answer.id,
+        target_type: 'answer',
+        vote_type: voteType
+      });
+      
+      // Update local state
+      if (userVote === voteType) {
+        const delta = voteType === 'upvote' ? -1 : 1;
+        setVotes(votes + delta);
+        setUserVote(null);
+      } else {
+        let delta = 0;
+        if (userVote === null) {
+          delta = voteType === 'upvote' ? 1 : -1;
+        } else {
+          delta = voteType === 'upvote' ? 2 : -2;
+        }
+        setVotes(votes + delta);
+        setUserVote(voteType);
+      }
+
+      // Refresh user data
+      const userResponse = await axios.get(`${API}/auth/me`);
+      updateUser(userResponse.data);
+    } catch (error) {
+      console.error('Error voting:', error);
+    }
+  };
+
+  const handleAccept = async () => {
+    if (!user || user.id !== questionAuthorId) return;
+
+    try {
+      await axios.post(`${API}/answers/${answer.id}/accept`);
+      setIsAccepted(true);
+      onAccepted();
+      
+      // Refresh user data
+      const userResponse = await axios.get(`${API}/auth/me`);
+      updateUser(userResponse.data);
+    } catch (error) {
+      console.error('Error accepting answer:', error);
+    }
+  };
+
+  return (
+    <Card className={`bg-gray-900 border-copper/20 ${isAccepted ? 'border-green-500/50 bg-green-900/10' : ''}`}>
+      <CardContent className="p-6">
+        <div className="flex space-x-4">
+          {/* Vote controls */}
+          <div className="flex flex-col items-center space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleVote('upvote')}
+              className={`p-1 ${
+                userVote === 'upvote' 
+                  ? 'text-copper' 
+                  : 'text-gray-400 hover:text-copper'
+              }`}
+              disabled={!user || user.id === answer.author_id}
+            >
+              <ArrowUp className="h-5 w-5" />
+            </Button>
+            <span className="text-sm font-medium text-white">
+              {votes}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleVote('downvote')}
+              className={`p-1 ${
+                userVote === 'downvote' 
+                  ? 'text-red-400' 
+                  : 'text-gray-400 hover:text-red-400'
+              }`}
+              disabled={!user || user.id === answer.author_id}
+            >
+              <ArrowDown className="h-5 w-5" />
+            </Button>
+            
+            {/* Accept answer button */}
+            {user && user.id === questionAuthorId && !isAccepted && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleAccept}
+                className="p-1 text-gray-400 hover:text-green-400 mt-2"
+                title="Aceitar resposta"
+              >
+                <Check className="h-5 w-5" />
+              </Button>
+            )}
+            
+            {isAccepted && (
+              <div className="mt-2 p-1">
+                <Check className="h-5 w-5 text-green-400" title="Resposta aceita" />
+              </div>
+            )}
+          </div>
+
+          {/* Answer content */}
+          <div className="flex-1">
+            {isAccepted && (
+              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 mb-3">
+                ✓ Resposta Aceita
+              </Badge>
+            )}
+            
+            <div className="text-gray-300 mb-4 whitespace-pre-wrap">
+              {answer.content}
+            </div>
+
+            {/* Author info */}
+            <div className="flex items-center justify-between text-sm text-gray-400">
+              <div className="flex items-center space-x-2">
+                <span>respondido por</span>
+                <span className="text-copper">{answer.author_username}</span>
+                <span>{new Date(answer.created_at).toLocaleDateString('pt-BR')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Question Detail Component
+const QuestionDetail = () => {
+  const { id } = useParams();
+  const { user, updateUser } = useAuth();
+  const [question, setQuestion] = useState(null);
+  const [answers, setAnswers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userVote, setUserVote] = useState(null);
+  const [votes, setVotes] = useState(0);
+
+  useEffect(() => {
+    fetchQuestion();
+    fetchAnswers();
+  }, [id]);
+
+  useEffect(() => {
+    if (user && question) {
+      fetchUserVote();
+    }
+  }, [user, question]);
+
+  const fetchQuestion = async () => {
+    try {
+      const response = await axios.get(`${API}/questions/${id}`);
+      setQuestion(response.data);
+      setVotes(response.data.upvotes - response.data.downvotes);
+    } catch (error) {
+      console.error('Error fetching question:', error);
+    }
+  };
+
+  const fetchAnswers = async () => {
+    try {
+      const response = await axios.get(`${API}/questions/${id}/answers`);
+      setAnswers(response.data);
+    } catch (error) {
+      console.error('Error fetching answers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUserVote = async () => {
+    try {
+      const response = await axios.get(`${API}/users/${user.id}/votes/${question.id}`);
+      setUserVote(response.data.vote_type);
+    } catch (error) {
+      console.error('Error fetching user vote:', error);
+    }
+  };
+
+  const handleVote = async (voteType) => {
+    if (!user || user.id === question.author_id) return;
+
+    try {
+      await axios.post(`${API}/vote`, {
+        target_id: question.id,
+        target_type: 'question',
+        vote_type: voteType
+      });
+      
+      // Update local state
+      if (userVote === voteType) {
+        const delta = voteType === 'upvote' ? -1 : 1;
+        setVotes(votes + delta);
+        setUserVote(null);
+      } else {
+        let delta = 0;
+        if (userVote === null) {
+          delta = voteType === 'upvote' ? 1 : -1;
+        } else {
+          delta = voteType === 'upvote' ? 2 : -2;
+        }
+        setVotes(votes + delta);
+        setUserVote(voteType);
+      }
+
+      // Refresh user data
+      const userResponse = await axios.get(`${API}/auth/me`);
+      updateUser(userResponse.data);
+    } catch (error) {
+      console.error('Error voting:', error);
+    }
+  };
+
+  const handleAnswerCreated = (newAnswer) => {
+    setAnswers([...answers, newAnswer]);
+    fetchQuestion(); // Refresh to update answer count
+    
+    // Refresh user data
+    axios.get(`${API}/auth/me`).then(response => {
+      updateUser(response.data);
+    });
+  };
+
+  const handleAnswerAccepted = () => {
+    fetchAnswers(); // Refresh answers to show accepted state
+    fetchQuestion(); // Refresh question data
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-copper"></div>
+      </div>
+    );
+  }
+
+  if (!question) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Pergunta não encontrada</h2>
+          <Link to="/perguntas">
+            <Button className="bg-copper hover:bg-copper/90 text-black">
+              Voltar às Perguntas
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Question Card */}
+        <Card className="bg-gray-900 border-copper/20 mb-6">
+          <CardContent className="p-6">
+            <div className="flex space-x-4">
+              {/* Vote controls */}
+              <div className="flex flex-col items-center space-y-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleVote('upvote')}
+                  className={`p-1 ${
+                    userVote === 'upvote' 
+                      ? 'text-copper' 
+                      : 'text-gray-400 hover:text-copper'
+                  }`}
+                  disabled={!user || user.id === question.author_id}
+                >
+                  <ArrowUp className="h-6 w-6" />
+                </Button>
+                <span className="text-lg font-medium text-white">
+                  {votes}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleVote('downvote')}
+                  className={`p-1 ${
+                    userVote === 'downvote' 
+                      ? 'text-red-400' 
+                      : 'text-gray-400 hover:text-red-400'
+                  }`}
+                  disabled={!user || user.id === question.author_id}
+                >
+                  <ArrowDown className="h-6 w-6" />
+                </Button>
+              </div>
+
+              {/* Question content */}
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold text-white mb-4">
+                  {question.title}
+                </h1>
+                
+                <div className="text-gray-300 mb-6 whitespace-pre-wrap">
+                  {question.content}
+                </div>
+
+                {/* Tags */}
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {question.tags.map((tag, index) => (
+                    <Badge key={index} variant="secondary" className="bg-copper/20 text-copper border-copper/30">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+
+                {/* Stats and author */}
+                <div className="flex items-center justify-between text-sm text-gray-400">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-1">
+                      <MessageSquare className="h-4 w-4" />
+                      <span>{answers.length}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Eye className="h-4 w-4" />
+                      <span>{question.views}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <span>perguntado por</span>
+                    <span className="text-copper">{question.author_username}</span>
+                    <span>{new Date(question.created_at).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Answers Section */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-white mb-4">
+            {answers.length} {answers.length === 1 ? 'Resposta' : 'Respostas'}
+          </h2>
+          
+          <div className="space-y-4">
+            {answers.map((answer) => (
+              <AnswerCard 
+                key={answer.id} 
+                answer={answer} 
+                questionAuthorId={question.author_id}
+                onAccepted={handleAnswerAccepted}
+                onUserUpdate={updateUser}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Answer Form */}
+        {user && (
+          <AnswerForm questionId={question.id} onSuccess={handleAnswerCreated} />
+        )}
+
+        {!user && (
+          <Card className="bg-gray-900 border-copper/20">
+            <CardContent className="p-6 text-center">
+              <h3 className="text-xl font-semibold text-white mb-2">
+                Quer responder esta pergunta?
+              </h3>
+              <p className="text-gray-400 mb-4">
+                Entre na comunidade e compartilhe seu conhecimento!
+              </p>
+              <div className="space-x-4">
+                <Link to="/login">
+                  <Button variant="outline" className="border-copper text-copper hover:bg-copper hover:text-black">
+                    Entrar
+                  </Button>
+                </Link>
+                <Link to="/registro">
+                  <Button className="bg-copper hover:bg-copper/90 text-black">
+                    Criar Conta
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Question Card Component
 const QuestionCard = ({ question }) => {
   const { user, updateUser } = useAuth();
@@ -520,12 +987,10 @@ const QuestionCard = ({ question }) => {
       
       // Update local state
       if (userVote === voteType) {
-        // Remove vote
         const delta = voteType === 'upvote' ? -1 : 1;
         setVotes(votes + delta);
         setUserVote(null);
       } else {
-        // Add or change vote
         let delta = 0;
         if (userVote === null) {
           delta = voteType === 'upvote' ? 1 : -1;
@@ -583,9 +1048,11 @@ const QuestionCard = ({ question }) => {
 
           {/* Question content */}
           <div className="flex-1">
-            <h3 className="text-xl font-semibold text-white hover:text-copper transition-colors mb-2">
-              {question.title}
-            </h3>
+            <Link to={`/pergunta/${question.id}`}>
+              <h3 className="text-xl font-semibold text-white hover:text-copper transition-colors mb-2">
+                {question.title}
+              </h3>
+            </Link>
             
             <p className="text-gray-300 mb-4 line-clamp-3">
               {question.content}
@@ -632,10 +1099,27 @@ const QuestionsList = () => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewQuestion, setShowNewQuestion] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredQuestions, setFilteredQuestions] = useState([]);
 
   useEffect(() => {
     fetchQuestions();
   }, []);
+
+  useEffect(() => {
+    // Filter questions based on search term
+    if (searchTerm.trim() === '') {
+      setFilteredQuestions(questions);
+    } else {
+      const filtered = questions.filter(question => 
+        question.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        question.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        question.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        question.author_username.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredQuestions(filtered);
+    }
+  }, [searchTerm, questions]);
 
   const fetchQuestions = async () => {
     try {
@@ -664,38 +1148,68 @@ const QuestionsList = () => {
   return (
     <div className="min-h-screen bg-black">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <h1 className="text-3xl font-bold text-white">Perguntas</h1>
-          {user && (
-            <Dialog open={showNewQuestion} onOpenChange={setShowNewQuestion}>
-              <DialogTrigger asChild>
-                <Button className="bg-copper hover:bg-copper/90 text-black">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Pergunta
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-gray-900 border-copper/20 text-white max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Criar Nova Pergunta</DialogTitle>
-                </DialogHeader>
-                <NewQuestionForm 
-                  onSuccess={handleQuestionCreated} 
-                  onCancel={() => setShowNewQuestion(false)}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
+          
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full sm:w-auto">
+            {/* Search Bar */}
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                type="text"
+                placeholder="Buscar perguntas, tags, autores..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white pl-10"
+              />
+            </div>
+            
+            {/* New Question Button */}
+            {user && (
+              <Dialog open={showNewQuestion} onOpenChange={setShowNewQuestion}>
+                <DialogTrigger asChild>
+                  <Button className="bg-copper hover:bg-copper/90 text-black whitespace-nowrap">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Pergunta
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-gray-900 border-copper/20 text-white max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Criar Nova Pergunta</DialogTitle>
+                  </DialogHeader>
+                  <NewQuestionForm 
+                    onSuccess={handleQuestionCreated} 
+                    onCancel={() => setShowNewQuestion(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </div>
 
-        {questions.length === 0 ? (
+        {/* Search Results Info */}
+        {searchTerm && (
+          <div className="mb-4">
+            <p className="text-gray-400">
+              {filteredQuestions.length} resultado(s) para "{searchTerm}"
+            </p>
+          </div>
+        )}
+
+        {filteredQuestions.length === 0 ? (
           <Card className="bg-gray-900 border-copper/20">
             <CardContent className="p-8 text-center">
               <MessageSquare className="h-12 w-12 text-copper mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Nenhuma pergunta ainda</h3>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {searchTerm ? 'Nenhuma pergunta encontrada' : 'Nenhuma pergunta ainda'}
+              </h3>
               <p className="text-gray-400 mb-4">
-                Seja o primeiro a fazer uma pergunta na comunidade!
+                {searchTerm 
+                  ? `Não encontramos perguntas relacionadas a "${searchTerm}". Tente outros termos.`
+                  : 'Seja o primeiro a fazer uma pergunta na comunidade!'
+                }
               </p>
-              {user && (
+              {user && !searchTerm && (
                 <Button 
                   onClick={() => setShowNewQuestion(true)}
                   className="bg-copper hover:bg-copper/90 text-black"
@@ -704,11 +1218,20 @@ const QuestionsList = () => {
                   Fazer Primeira Pergunta
                 </Button>
               )}
+              {searchTerm && (
+                <Button 
+                  onClick={() => setSearchTerm('')}
+                  variant="outline"
+                  className="border-copper text-copper hover:bg-copper hover:text-black"
+                >
+                  Limpar Busca
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
-            {questions.map((question) => (
+            {filteredQuestions.map((question) => (
               <QuestionCard key={question.id} question={question} />
             ))}
           </div>
@@ -882,6 +1405,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/registro" element={<Register />} />
             <Route path="/perguntas" element={<QuestionsList />} />
+            <Route path="/pergunta/:id" element={<QuestionDetail />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>
