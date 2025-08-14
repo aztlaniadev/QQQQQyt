@@ -396,23 +396,73 @@ async def get_user_vote(user_id: str, target_id: str):
     vote = await db.votes.find_one({"user_id": user_id, "target_id": target_id})
     return {"vote_type": vote["vote_type"] if vote else None}
 
-# User Stats
-@api_router.get("/users/{user_id}/stats")
-async def get_user_stats(user_id: str):
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+# Admin Routes
+@api_router.get("/admin/answers/pending")
+async def get_pending_answers(current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
     
-    questions_count = await db.questions.count_documents({"author_id": user_id})
-    answers_count = await db.answers.count_documents({"author_id": user_id})
-    accepted_answers = await db.answers.count_documents({"author_id": user_id, "is_accepted": True})
+    answers = await db.answers.find({"is_validated": False}).sort("created_at", 1).to_list(100)
+    return [Answer(**answer) for answer in answers]
+
+@api_router.post("/admin/answers/{answer_id}/validate")
+async def validate_answer(answer_id: str, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
     
-    return {
-        "user": UserResponse(**user),
-        "questions_count": questions_count,
-        "answers_count": answers_count,
-        "accepted_answers": accepted_answers
-    }
+    answer = await db.answers.find_one({"id": answer_id})
+    if not answer:
+        raise HTTPException(status_code=404, detail="Resposta não encontrada")
+    
+    if answer["is_validated"]:
+        raise HTTPException(status_code=400, detail="Resposta já foi validada")
+    
+    # Update answer as validated
+    await db.answers.update_one(
+        {"id": answer_id},
+        {"$set": {
+            "is_validated": True,
+            "validated_by": current_user["id"],
+            "validated_at": datetime.utcnow()
+        }}
+    )
+    
+    # Award points to answer author ONLY after validation
+    await update_user_points(answer["author_id"], pc_delta=5, pcon_delta=10)
+    
+    return {"message": "Resposta validada com sucesso. Pontos concedidos ao autor."}
+
+@api_router.post("/admin/answers/{answer_id}/reject")
+async def reject_answer(answer_id: str, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    answer = await db.answers.find_one({"id": answer_id})
+    if not answer:
+        raise HTTPException(status_code=404, detail="Resposta não encontrada")
+    
+    # Delete rejected answer
+    await db.answers.delete_one({"id": answer_id})
+    
+    # Update question answer count
+    await db.questions.update_one(
+        {"id": answer["question_id"]},
+        {"$inc": {"answers_count": -1}}
+    )
+    
+    return {"message": "Resposta rejeitada e removida"}
+
+@api_router.post("/admin/users/{user_id}/make-admin")
+async def make_user_admin(user_id: str, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"is_admin": True}}
+    )
+    
+    return {"message": "Usuário promovido a administrador"}
 
 # Health check
 @api_router.get("/")
