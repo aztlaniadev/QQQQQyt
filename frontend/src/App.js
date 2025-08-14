@@ -2798,6 +2798,240 @@ const CompanyRegister = () => (
   </div>
 );
 
+// Question Detail Component
+const QuestionDetail = () => {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const [question, setQuestion] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchQuestion();
+  }, [id]);
+
+  const fetchQuestion = async () => {
+    try {
+      const response = await axios.get(`${API}/questions/${id}`);
+      setQuestion(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar pergunta:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-copper"></div>
+      </div>
+    );
+  }
+
+  if (!question) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center text-white">
+          <h1 className="text-2xl font-bold mb-4">Pergunta não encontrada</h1>
+          <Link to="/perguntas">
+            <Button className="bg-copper hover:bg-copper/90 text-black">
+              Voltar às Perguntas
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <Card className="bg-gray-900 border-copper/20">
+          <CardContent className="p-6">
+            <h1 className="text-2xl font-bold text-white mb-4">{question.title}</h1>
+            <p className="text-gray-300 mb-4">{question.content}</p>
+            {question.code && (
+              <div className="bg-gray-800 p-4 rounded-lg mb-4">
+                <pre className="text-gray-100 font-mono text-sm overflow-x-auto">
+                  <code>{question.code}</code>
+                </pre>
+              </div>
+            )}
+            <div className="flex items-center gap-4 text-sm text-gray-400">
+              <span>Por {question.author_username}</span>
+              <span>{new Date(question.created_at).toLocaleDateString('pt-BR')}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// Profile Settings Component
+const ProfileSettings = () => {
+  const { user, updateUser } = useAuth();
+  const [formData, setFormData] = useState({
+    username: user?.username || '',
+    email: user?.email || '',
+    bio: user?.bio || '',
+    location: user?.location || '',
+    github_url: user?.github_url || '',
+    linkedin_url: user?.linkedin_url || '',
+    website_url: user?.website_url || ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(`${API}/auth/profile`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      updateUser(response.data);
+      setMessage('Perfil atualizado com sucesso!');
+    } catch (error) {
+      setMessage('Erro ao atualizar perfil: ' + (error.response?.data?.detail || 'Erro desconhecido'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-white mb-8">Configurações do Perfil</h1>
+        
+        <Card className="bg-gray-900 border-copper/20">
+          <CardHeader>
+            <CardTitle className="text-white">Informações Pessoais</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="username" className="text-gray-300">Nome de usuário</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="email" className="text-gray-300">Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="location" className="text-gray-300">Localização</Label>
+                <Input
+                  id="location"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="Ex: São Paulo, Brasil"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="bio" className="text-gray-300">Bio</Label>
+                <Textarea
+                  id="bio"
+                  name="bio"
+                  value={formData.bio}
+                  onChange={handleChange}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="Conte um pouco sobre você..."
+                  rows={3}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="github_url" className="text-gray-300">GitHub URL</Label>
+                <Input
+                  id="github_url"
+                  name="github_url"
+                  value={formData.github_url}
+                  onChange={handleChange}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="https://github.com/seuusuario"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="linkedin_url" className="text-gray-300">LinkedIn URL</Label>
+                <Input
+                  id="linkedin_url"
+                  name="linkedin_url"
+                  value={formData.linkedin_url}
+                  onChange={handleChange}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="https://linkedin.com/in/seuusuario"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="website_url" className="text-gray-300">Website</Label>
+                <Input
+                  id="website_url"
+                  name="website_url"
+                  value={formData.website_url}
+                  onChange={handleChange}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="https://seusite.com"
+                />
+              </div>
+              
+              {message && (
+                <div className={`text-sm text-center ${message.includes('sucesso') ? 'text-green-400' : 'text-red-400'}`}>
+                  {message}
+                </div>
+              )}
+              
+              <Button
+                type="submit"
+                className="w-full bg-copper hover:bg-copper/90 text-black"
+                disabled={loading}
+              >
+                {loading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
 // Main App Component
 function App() {
   return (
