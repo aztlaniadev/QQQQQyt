@@ -1575,6 +1575,17 @@ const AdminPanel = () => {
   );
 };
 
+// Protected Route wrapper
+const ProtectedRoute = ({ children }) => {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
 // Main App Component
 function App() {
   return (
@@ -1588,6 +1599,7 @@ function App() {
             <Route path="/registro" element={<Register />} />
             <Route path="/perguntas" element={<QuestionsList />} />
             <Route path="/pergunta/:id" element={<QuestionDetail />} />
+            <Route path="/admin" element={<AdminPanel />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>
