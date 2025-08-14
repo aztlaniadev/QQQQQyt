@@ -673,6 +673,14 @@ class AcodeLabAPITester:
             ("Accept Answer", self.test_accept_answer),
             ("Get User Vote", self.test_get_user_vote),
             ("Get User Stats", self.test_get_user_stats),
+            # Admin validation system tests
+            ("Admin Login", self.test_admin_login),
+            ("Admin Get Me", self.test_admin_get_me),
+            ("Normal User Create Answer (No Points)", self.test_normal_user_create_answer_no_points),
+            ("Admin Get Pending Answers", self.test_admin_get_pending_answers),
+            ("Normal User Cannot Access Admin Routes", self.test_normal_user_cannot_access_admin_routes),
+            ("Admin Validate Answer", self.test_admin_validate_answer),
+            ("Admin Reject Answer", self.test_admin_reject_answer),
         ]
         
         self.log("\n" + "="*60)
