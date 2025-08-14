@@ -760,21 +760,205 @@ const Dashboard = () => {
   );
 };
 
-// Simplified placeholder components for other routes
-const QuestionsList = () => (
-  <div className="min-h-screen bg-black">
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Perguntas</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <MessageSquare className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Sistema de Perguntas</h3>
-          <p className="text-gray-400">Funcionalidade completa em desenvolvimento...</p>
-        </CardContent>
-      </Card>
+// Questions List Component
+const QuestionsList = () => {
+  const { user } = useAuth();
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newQuestion, setNewQuestion] = useState({
+    title: '',
+    content: '',
+    code: '',
+    tags: ''
+  });
+
+  useEffect(() => {
+    fetchQuestions();
+  }, []);
+
+  const fetchQuestions = async () => {
+    try {
+      const response = await axios.get(`${API}/questions`);
+      setQuestions(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar perguntas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateQuestion = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const questionData = {
+        ...newQuestion,
+        tags: newQuestion.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+      };
+      
+      await axios.post(`${API}/questions`, questionData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setShowCreateForm(false);
+      setNewQuestion({ title: '', content: '', code: '', tags: '' });
+      fetchQuestions();
+    } catch (error) {
+      console.error('Erro ao criar pergunta:', error);
+    }
+  };
+
+  const filteredQuestions = questions.filter(q => 
+    q.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    q.content.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-white">Perguntas</h1>
+          {user && !user.is_company && (
+            <Button 
+              onClick={() => setShowCreateForm(true)}
+              className="bg-copper hover:bg-copper/90 text-black"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Pergunta
+            </Button>
+          )}
+        </div>
+
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+            <Input
+              placeholder="Buscar perguntas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+        </div>
+
+        {showCreateForm && (
+          <Card className="mb-6 bg-gray-900 border-copper/20">
+            <CardHeader>
+              <CardTitle className="text-white">Nova Pergunta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateQuestion} className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Título</Label>
+                  <Input
+                    value={newQuestion.title}
+                    onChange={(e) => setNewQuestion(prev => ({...prev, title: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Conteúdo</Label>
+                  <Textarea
+                    value={newQuestion.content}
+                    onChange={(e) => setNewQuestion(prev => ({...prev, content: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    rows={4}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Código (opcional)</Label>
+                  <Textarea
+                    value={newQuestion.code}
+                    onChange={(e) => setNewQuestion(prev => ({...prev, code: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white font-mono"
+                    rows={6}
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Tags (separadas por vírgula)</Label>
+                  <Input
+                    value={newQuestion.tags}
+                    onChange={(e) => setNewQuestion(prev => ({...prev, tags: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="javascript, react, bug"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" className="bg-copper hover:bg-copper/90 text-black">
+                    Publicar
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowCreateForm(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {loading ? (
+          <div className="text-center text-gray-400">Carregando perguntas...</div>
+        ) : (
+          <div className="space-y-4">
+            {filteredQuestions.map(question => (
+              <Card key={question.id} className="bg-gray-900 border-gray-700 hover:border-copper/50 transition-colors">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-white mb-2">{question.title}</h3>
+                      <p className="text-gray-300 mb-3 line-clamp-3">{question.content}</p>
+                      
+                      {question.tags && question.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {question.tags.map(tag => (
+                            <Badge key={tag} variant="secondary" className="bg-copper/20 text-copper">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <span>Por {question.author_username}</span>
+                        <span>{new Date(question.created_at).toLocaleDateString('pt-BR')}</span>
+                        <div className="flex items-center gap-2">
+                          <ArrowUp className="h-4 w-4" />
+                          <span>{question.upvotes}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          <span>{question.answers_count}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Eye className="h-4 w-4" />
+                          <span>{question.views}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {filteredQuestions.length === 0 && (
+              <div className="text-center text-gray-400 py-8">
+                {searchTerm ? 'Nenhuma pergunta encontrada para sua busca.' : 'Nenhuma pergunta ainda. Seja o primeiro a perguntar!'}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const ArticlesList = () => (
   <div className="min-h-screen bg-black">
