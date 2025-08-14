@@ -1916,8 +1916,12 @@ const AdminPanel = () => {
         setStats(statsRes.data);
         setPendingAnswers(pendingRes.data);
       } else if (activeTab === 'users') {
-        const response = await axios.get(`${API}/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
-        setUsers(response.data.users);
+        const [usersRes, questionsRes] = await Promise.all([
+          axios.get(`${API}/admin/users`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API}/questions`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        setUsers(usersRes.data.users);
+        setQuestions(questionsRes.data);
       } else if (activeTab === 'companies') {
         const response = await axios.get(`${API}/admin/companies`, { headers: { Authorization: `Bearer ${token}` } });
         setCompanies(response.data.companies);
@@ -1926,6 +1930,54 @@ const AdminPanel = () => {
       console.error('Erro ao buscar dados admin:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateBotContent = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (botContentForm.type === 'question') {
+        const questionData = {
+          bot_id: selectedUser.id,
+          title: botContentForm.title,
+          content: botContentForm.content,
+          code: botContentForm.code,
+          tags: botContentForm.tags.split(',').map(t => t.trim()).filter(t => t)
+        };
+        
+        await axios.post(`${API}/admin/bot-question`, questionData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        alert('Pergunta criada para o bot!');
+      } else {
+        const answerData = {
+          bot_id: selectedUser.id,
+          question_id: botContentForm.question_id,
+          content: botContentForm.content,
+          code: botContentForm.code
+        };
+        
+        await axios.post(`${API}/admin/bot-answer`, answerData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        alert('Resposta criada para o bot!');
+      }
+      
+      setShowBotContentModal(false);
+      setBotContentForm({
+        type: 'question',
+        title: '',
+        content: '',
+        code: '',
+        tags: '',
+        question_id: ''
+      });
+    } catch (error) {
+      alert('Erro ao criar conteúdo: ' + error.response?.data?.detail);
     }
   };
 
