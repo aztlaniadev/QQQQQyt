@@ -2,56 +2,6 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 
-// UI Components imports
-import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
-import { Label } from "./components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { Badge } from "./components/ui/badge";
-import { Textarea } from "./components/ui/textarea";
-import { Avatar, AvatarFallback } from "./components/ui/avatar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
-
-// Icons
-import { 
-  ArrowUp, 
-  ArrowDown, 
-  MessageSquare, 
-  Eye, 
-  Trophy, 
-  Coins, 
-  LogOut,
-  Plus,
-  Check,
-  User,
-  Search,
-  Code,
-  BookOpen,
-  Users,
-  Briefcase,
-  Star,
-  Heart,
-  Share2,
-  Edit,
-  Settings,
-  TrendingUp,
-  Award,
-  ShoppingCart,
-  Building,
-  Filter,
-  Crown,
-  Zap,
-  Target,
-  Globe,
-  Github,
-  Linkedin,
-  ExternalLink,
-  Clock,
-  X
-} from "lucide-react";
-
 const API = import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL;
 
 // Auth Context
