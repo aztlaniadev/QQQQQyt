@@ -1658,84 +1658,196 @@ const Jobs = () => (
 
 const AdminPanel = () => {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [users, setUsers] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [pendingAnswers, setPendingAnswers] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [showCreateBot, setShowCreateBot] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedCompany, setSelectedCompany] = useState(null);
+
+  const [botForm, setBotForm] = useState({
+    username: '',
+    email: '',
+    pc_points: 100,
+    pcon_points: 50,
+    rank: 'Colaborador',
+    bio: '',
+    location: '',
+    skills: ''
+  });
+
+  const [moderationForm, setModerationForm] = useState({
+    action: '',
+    reason: '',
+    expires: ''
+  });
+
+  const [pointsForm, setPointsForm] = useState({
+    pc_points: '',
+    pcon_points: ''
+  });
 
   useEffect(() => {
     if (user?.is_admin) {
-      fetchPendingAnswers();
-      fetchAdminStats();
+      fetchData();
     }
-  }, [user]);
+  }, [user, activeTab]);
 
-  const fetchPendingAnswers = async () => {
+  const fetchData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API}/admin/answers/pending`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setPendingAnswers(response.data);
+      
+      if (activeTab === 'dashboard') {
+        const [statsRes, pendingRes] = await Promise.all([
+          axios.get(`${API}/admin/advanced-stats`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API}/admin/answers/pending`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        setStats(statsRes.data);
+        setPendingAnswers(pendingRes.data);
+      } else if (activeTab === 'users') {
+        const response = await axios.get(`${API}/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
+        setUsers(response.data.users);
+      } else if (activeTab === 'companies') {
+        const response = await axios.get(`${API}/admin/companies`, { headers: { Authorization: `Bearer ${token}` } });
+        setCompanies(response.data.companies);
+      }
     } catch (error) {
-      console.error('Erro ao buscar respostas pendentes:', error);
-    }
-  };
-
-  const fetchAdminStats = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API}/admin/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setStats(response.data);
-    } catch (error) {
-      console.error('Erro ao buscar estatísticas:', error);
+      console.error('Erro ao buscar dados admin:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleValidateAnswer = async (answerId) => {
+  const handleCreateBot = async (e) => {
+    e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API}/admin/answers/${answerId}/validate`, {}, {
+      const botData = {
+        ...botForm,
+        skills: botForm.skills.split(',').map(s => s.trim()).filter(s => s)
+      };
+      
+      await axios.post(`${API}/admin/create-bot`, botData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Remove from pending list
-      setPendingAnswers(prev => prev.filter(answer => answer.id !== answerId));
-      
-      // Refresh stats
-      fetchAdminStats();
-      
-      alert('Resposta validada com sucesso!');
+      alert('Bot criado com sucesso!');
+      setShowCreateBot(false);
+      setBotForm({
+        username: '',
+        email: '',
+        pc_points: 100,
+        pcon_points: 50,
+        rank: 'Colaborador',
+        bio: '',
+        location: '',
+        skills: ''
+      });
+      fetchData();
     } catch (error) {
-      console.error('Erro ao validar resposta:', error);
-      alert('Erro ao validar resposta.');
+      alert('Erro ao criar bot: ' + error.response?.data?.detail);
     }
   };
 
-  const handleRejectAnswer = async (answerId) => {
-    if (!confirm('Tem certeza que deseja rejeitar esta resposta? Ela será removida permanentemente.')) {
+  const handleUserModeration = async (userId, action) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/admin/moderate-user`, {
+        user_id: userId,
+        action: action,
+        reason: moderationForm.reason || `Ação ${action} realizada pelo admin`,
+        expires: moderationForm.expires ? new Date(moderationForm.expires).toISOString() : null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      alert(`Usuário ${action}do com sucesso!`);
+      setShowUserModal(false);
+      setModerationForm({ action: '', reason: '', expires: '' });
+      fetchData();
+    } catch (error) {
+      alert('Erro na moderação: ' + error.response?.data?.detail);
+    }
+  };
+
+  const handleUpdatePoints = async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/admin/update-points`, {
+        user_id: userId,
+        pc_points: pointsForm.pc_points ? parseInt(pointsForm.pc_points) : null,
+        pcon_points: pointsForm.pcon_points ? parseInt(pointsForm.pcon_points) : null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      alert('Pontos atualizados com sucesso!');
+      setPointsForm({ pc_points: '', pcon_points: '' });
+      fetchData();
+    } catch (error) {
+      alert('Erro ao atualizar pontos: ' + error.response?.data?.detail);
+    }
+  };
+
+  const handleDeleteUser = async (userId, username) => {
+    if (!confirm(`ATENÇÃO: Você está prestes a DELETAR PERMANENTEMENTE o usuário "${username}" e TODO o seu conteúdo (perguntas, respostas, artigos, etc.). Esta ação NÃO pode ser desfeita. Tem certeza?`)) {
       return;
     }
     
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API}/admin/answers/${answerId}/reject`, {}, {
+      await axios.delete(`${API}/admin/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Remove from pending list
-      setPendingAnswers(prev => prev.filter(answer => answer.id !== answerId));
-      
-      // Refresh stats
-      fetchAdminStats();
-      
-      alert('Resposta rejeitada e removida.');
+      alert('Usuário deletado permanentemente!');
+      fetchData();
     } catch (error) {
-      console.error('Erro ao rejeitar resposta:', error);
-      alert('Erro ao rejeitar resposta.');
+      alert('Erro ao deletar usuário: ' + error.response?.data?.detail);
+    }
+  };
+
+  const handleCompanyModeration = async (companyId, action) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/admin/moderate-company`, {
+        company_id: companyId,
+        action: action,
+        reason: moderationForm.reason || `Ação ${action} realizada pelo admin`,
+        expires: moderationForm.expires ? new Date(moderationForm.expires).toISOString() : null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      alert(`Empresa ${action}ida com sucesso!`);
+      setShowCompanyModal(false);
+      setModerationForm({ action: '', reason: '', expires: '' });
+      fetchData();
+    } catch (error) {
+      alert('Erro na moderação: ' + error.response?.data?.detail);
+    }
+  };
+
+  const handleDeleteCompany = async (companyId, companyName) => {
+    if (!confirm(`ATENÇÃO: Você está prestes a DELETAR PERMANENTEMENTE a empresa "${companyName}" e TODO o seu conteúdo (vagas, etc.). Esta ação NÃO pode ser desfeita. Tem certeza?`)) {
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API}/admin/companies/${companyId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      alert('Empresa deletada permanentemente!');
+      fetchData();
+    } catch (error) {
+      alert('Erro ao deletar empresa: ' + error.response?.data?.detail);
     }
   };
 
@@ -1763,130 +1875,534 @@ const AdminPanel = () => {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-8">
           <Crown className="h-8 w-8 text-copper" />
-          <h1 className="text-3xl font-bold text-white">Painel de Administração</h1>
+          <h1 className="text-3xl font-bold text-white">Painel Administrativo Avançado</h1>
         </div>
 
-        {/* Stats Grid */}
-        {!loading && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-            <Card className="bg-gray-900 border-copper/20">
-              <CardContent className="p-4 text-center">
-                <Users className="h-6 w-6 text-blue-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{stats.total_users || 0}</p>
-                <p className="text-xs text-gray-400">Usuários</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gray-900 border-copper/20">
-              <CardContent className="p-4 text-center">
-                <Building className="h-6 w-6 text-green-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{stats.total_companies || 0}</p>
-                <p className="text-xs text-gray-400">Empresas</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gray-900 border-copper/20">
-              <CardContent className="p-4 text-center">
-                <MessageSquare className="h-6 w-6 text-purple-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{stats.total_questions || 0}</p>
-                <p className="text-xs text-gray-400">Perguntas</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gray-900 border-copper/20">
-              <CardContent className="p-4 text-center">
-                <Check className="h-6 w-6 text-amber-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{stats.total_answers || 0}</p>
-                <p className="text-xs text-gray-400">Respostas</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gray-900 border-copper/20">
-              <CardContent className="p-4 text-center">
-                <Clock className="h-6 w-6 text-orange-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{stats.pending_answers || 0}</p>
-                <p className="text-xs text-gray-400">Pendentes</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gray-900 border-copper/20">
-              <CardContent className="p-4 text-center">
-                <BookOpen className="h-6 w-6 text-cyan-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{stats.total_articles || 0}</p>
-                <p className="text-xs text-gray-400">Artigos</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 bg-gray-800">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-copper data-[state=active]:text-black">
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="users" className="data-[state=active]:bg-copper data-[state=active]:text-black">
+              Usuários
+            </TabsTrigger>
+            <TabsTrigger value="companies" className="data-[state=active]:bg-copper data-[state=active]:text-black">
+              Empresas
+            </TabsTrigger>
+            <TabsTrigger value="moderation" className="data-[state=active]:bg-copper data-[state=active]:text-black">
+              Moderação
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Pending Answers Section */}
-        <Card className="bg-gray-900 border-copper/20">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Clock className="h-5 w-5 text-orange-400" />
-              Respostas Pendentes de Validação ({pendingAnswers.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          <TabsContent value="dashboard" className="mt-6">
             {loading ? (
-              <div className="text-center text-gray-400 py-8">Carregando respostas pendentes...</div>
-            ) : pendingAnswers.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
-                <Check className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhuma resposta pendente de validação!</p>
+              <div className="text-center text-gray-400">Carregando dados...</div>
+            ) : (
+              <div className="space-y-6">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  <Card className="bg-gray-900 border-blue-500/20">
+                    <CardContent className="p-4 text-center">
+                      <Users className="h-6 w-6 text-blue-400 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-white">{stats.basic_stats?.total_users || 0}</p>
+                      <p className="text-xs text-gray-400">Usuários</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gray-900 border-green-500/20">
+                    <CardContent className="p-4 text-center">
+                      <Building className="h-6 w-6 text-green-400 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-white">{stats.basic_stats?.total_companies || 0}</p>
+                      <p className="text-xs text-gray-400">Empresas</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gray-900 border-red-500/20">
+                    <CardContent className="p-4 text-center">
+                      <X className="h-6 w-6 text-red-400 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-white">{stats.moderation_stats?.banned_users || 0}</p>
+                      <p className="text-xs text-gray-400">Banidos</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gray-900 border-yellow-500/20">
+                    <CardContent className="p-4 text-center">
+                      <Settings className="h-6 w-6 text-yellow-400 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-white">{stats.moderation_stats?.bot_users || 0}</p>
+                      <p className="text-xs text-gray-400">Bots</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gray-900 border-orange-500/20">
+                    <CardContent className="p-4 text-center">
+                      <Clock className="h-6 w-6 text-orange-400 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-white">{stats.basic_stats?.pending_answers || 0}</p>
+                      <p className="text-xs text-gray-400">Pendentes</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gray-900 border-purple-500/20">
+                    <CardContent className="p-4 text-center">
+                      <TrendingUp className="h-6 w-6 text-purple-400 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-white">{stats.activity_stats?.active_today || 0}</p>
+                      <p className="text-xs text-gray-400">Ativos Hoje</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Top Users */}
+                <Card className="bg-gray-900 border-copper/20">
+                  <CardHeader>
+                    <CardTitle className="text-white">Top Usuários por PC</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {stats.top_users?.map((topUser, index) => (
+                        <div key={topUser.id} className="flex items-center justify-between p-2 bg-gray-800 rounded">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-copper/20 rounded-full flex items-center justify-center text-copper font-bold text-sm">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="text-white font-medium">
+                                {topUser.username} 
+                                {topUser.is_bot && <Badge className="ml-2 bg-yellow-500/20 text-yellow-400">BOT</Badge>}
+                              </p>
+                              <p className="text-xs text-gray-400">{topUser.pc_points} PC • {topUser.rank}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Pending Answers */}
+                <Card className="bg-gray-900 border-copper/20">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-orange-400" />
+                      Respostas Pendentes ({pendingAnswers.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {pendingAnswers.length === 0 ? (
+                      <div className="text-center text-gray-400 py-8">
+                        <Check className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Nenhuma resposta pendente!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {pendingAnswers.slice(0, 5).map(answer => (
+                          <Card key={answer.id} className="bg-gray-800 border-gray-700">
+                            <CardContent className="p-4">
+                              <p className="text-white mb-2">{answer.content.substring(0, 150)}...</p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-400">Por {answer.author_username}</p>
+                                <div className="flex gap-2">
+                                  <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                    Validar
+                                  </Button>
+                                  <Button size="sm" variant="destructive">
+                                    Rejeitar
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="users" className="mt-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-white">Gerenciar Usuários</h2>
+              <Button 
+                onClick={() => setShowCreateBot(true)}
+                className="bg-copper hover:bg-copper/90 text-black"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Bot
+              </Button>
+            </div>
+
+            {loading ? (
+              <div className="text-center text-gray-400">Carregando usuários...</div>
             ) : (
               <div className="space-y-4">
-                {pendingAnswers.map(answer => (
-                  <Card key={answer.id} className="bg-gray-800 border-gray-700">
+                {users.map(user => (
+                  <Card key={user.id} className="bg-gray-900 border-gray-700">
                     <CardContent className="p-4">
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm text-gray-400">
-                            Resposta de <strong className="text-white">{answer.author_username}</strong>
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(answer.created_at).toLocaleString('pt-BR')}
-                          </p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback className="bg-copper text-black">
+                              {user.username[0].toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3 className="text-white font-semibold">
+                              {user.username}
+                              {user.is_bot && <Badge className="ml-2 bg-yellow-500/20 text-yellow-400">BOT</Badge>}
+                              {user.is_banned && <Badge className="ml-2 bg-red-500/20 text-red-400">BANIDO</Badge>}
+                              {user.is_muted && <Badge className="ml-2 bg-orange-500/20 text-orange-400">MUTADO</Badge>}
+                              {user.is_admin && <Badge className="ml-2 bg-purple-500/20 text-purple-400">ADMIN</Badge>}
+                            </h3>
+                            <p className="text-gray-400 text-sm">{user.email}</p>
+                            <p className="text-gray-400 text-sm">{user.pc_points} PC • {user.pcon_points} PCon • {user.rank}</p>
+                          </div>
                         </div>
-                        
-                        <div className="mb-3">
-                          <p className="text-white whitespace-pre-wrap">{answer.content}</p>
-                          {answer.code && (
-                            <div className="mt-3 p-3 bg-black rounded border border-gray-600">
-                              <pre className="text-sm text-gray-300 font-mono overflow-x-auto">
-                                <code>{answer.code}</code>
-                              </pre>
-                            </div>
-                          )}
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setPointsForm({
+                                pc_points: user.pc_points.toString(),
+                                pcon_points: user.pcon_points.toString()
+                              });
+                              setShowUserModal(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Gerenciar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => handleDeleteUser(user.id, user.username)}
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Deletar
+                          </Button>
                         </div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button 
-                          onClick={() => handleValidateAnswer(answer.id)}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          size="sm"
-                        >
-                          <Check className="h-4 w-4 mr-1" />
-                          Validar
-                        </Button>
-                        <Button 
-                          onClick={() => handleRejectAnswer(answer.id)}
-                          variant="destructive"
-                          size="sm"
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Rejeitar
-                        </Button>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </TabsContent>
+
+          <TabsContent value="companies" className="mt-6">
+            <h2 className="text-2xl font-bold text-white mb-6">Gerenciar Empresas</h2>
+            
+            {loading ? (
+              <div className="text-center text-gray-400">Carregando empresas...</div>
+            ) : (
+              <div className="space-y-4">
+                {companies.map(company => (
+                  <Card key={company.id} className="bg-gray-900 border-gray-700">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback className="bg-green-600 text-white">
+                              {company.name[0].toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3 className="text-white font-semibold">
+                              {company.name}
+                              {company.is_banned && <Badge className="ml-2 bg-red-500/20 text-red-400">BANIDA</Badge>}
+                            </h3>
+                            <p className="text-gray-400 text-sm">{company.email}</p>
+                            <p className="text-gray-400 text-sm">{company.location} • {company.subscription_plan}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedCompany(company);
+                              setShowCompanyModal(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Gerenciar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => handleDeleteCompany(company.id, company.name)}
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Deletar
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="moderation" className="mt-6">
+            <Card className="bg-gray-900 border-copper/20">
+              <CardHeader>
+                <CardTitle className="text-white">Ações de Moderação</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="p-4 bg-gray-800 rounded">
+                    <h4 className="text-white font-semibold mb-2">Usuários Banidos</h4>
+                    <p className="text-2xl font-bold text-red-400">{stats.moderation_stats?.banned_users || 0}</p>
+                  </div>
+                  <div className="p-4 bg-gray-800 rounded">
+                    <h4 className="text-white font-semibold mb-2">Usuários Mutados</h4>
+                    <p className="text-2xl font-bold text-orange-400">{stats.moderation_stats?.muted_users || 0}</p>
+                  </div>
+                  <div className="p-4 bg-gray-800 rounded">
+                    <h4 className="text-white font-semibold mb-2">Usuários Silenciados</h4>
+                    <p className="text-2xl font-bold text-yellow-400">{stats.moderation_stats?.silenced_users || 0}</p>
+                  </div>
+                  <div className="p-4 bg-gray-800 rounded">
+                    <h4 className="text-white font-semibold mb-2">Bots Ativos</h4>
+                    <p className="text-2xl font-bold text-blue-400">{stats.moderation_stats?.bot_users || 0}</p>
+                  </div>
+                  <div className="p-4 bg-gray-800 rounded">
+                    <h4 className="text-white font-semibold mb-2">Empresas Banidas</h4>
+                    <p className="text-2xl font-bold text-red-400">{stats.moderation_stats?.banned_companies || 0}</p>
+                  </div>
+                  <div className="p-4 bg-gray-800 rounded">
+                    <h4 className="text-white font-semibold mb-2">Usuários Ativos Hoje</h4>
+                    <p className="text-2xl font-bold text-green-400">{stats.activity_stats?.active_today || 0}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Create Bot Modal */}
+        {showCreateBot && (
+          <Dialog open={showCreateBot} onOpenChange={setShowCreateBot}>
+            <DialogContent className="bg-gray-900 border-copper/20">
+              <DialogHeader>
+                <DialogTitle className="text-white">Criar Bot para Engajamento</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreateBot} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-300">Username</Label>
+                    <Input
+                      value={botForm.username}
+                      onChange={(e) => setBotForm(prev => ({...prev, username: e.target.value}))}
+                      className="bg-gray-800 border-gray-700 text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-300">Email</Label>
+                    <Input
+                      value={botForm.email}
+                      onChange={(e) => setBotForm(prev => ({...prev, email: e.target.value}))}
+                      className="bg-gray-800 border-gray-700 text-white"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-300">PC Points</Label>
+                    <Input
+                      type="number"
+                      value={botForm.pc_points}
+                      onChange={(e) => setBotForm(prev => ({...prev, pc_points: parseInt(e.target.value)}))}
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-300">PCon Points</Label>
+                    <Input
+                      type="number"
+                      value={botForm.pcon_points}
+                      onChange={(e) => setBotForm(prev => ({...prev, pcon_points: parseInt(e.target.value)}))}
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-gray-300">Rank</Label>
+                  <Select value={botForm.rank} onValueChange={(value) => setBotForm(prev => ({...prev, rank: value}))}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Iniciante">Iniciante</SelectItem>
+                      <SelectItem value="Colaborador">Colaborador</SelectItem>
+                      <SelectItem value="Especialista">Especialista</SelectItem>
+                      <SelectItem value="Mestre">Mestre</SelectItem>
+                      <SelectItem value="Guru">Guru</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-gray-300">Bio</Label>
+                  <Textarea
+                    value={botForm.bio}
+                    onChange={(e) => setBotForm(prev => ({...prev, bio: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-300">Localização</Label>
+                    <Input
+                      value={botForm.location}
+                      onChange={(e) => setBotForm(prev => ({...prev, location: e.target.value}))}
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-300">Skills (separadas por vírgula)</Label>
+                    <Input
+                      value={botForm.skills}
+                      onChange={(e) => setBotForm(prev => ({...prev, skills: e.target.value}))}
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" className="bg-copper hover:bg-copper/90 text-black">
+                    Criar Bot
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setShowCreateBot(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* User Management Modal */}
+        {showUserModal && selectedUser && (
+          <Dialog open={showUserModal} onOpenChange={setShowUserModal}>
+            <DialogContent className="bg-gray-900 border-copper/20 max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-white">Gerenciar: {selectedUser.username}</DialogTitle>
+              </DialogHeader>
+              <Tabs defaultValue="points" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 bg-gray-800">
+                  <TabsTrigger value="points">Pontos</TabsTrigger>
+                  <TabsTrigger value="moderation">Moderação</TabsTrigger>
+                </TabsList>
+                <TabsContent value="points" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-300">PC Points</Label>
+                      <Input
+                        type="number"
+                        value={pointsForm.pc_points}
+                        onChange={(e) => setPointsForm(prev => ({...prev, pc_points: e.target.value}))}
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">PCon Points</Label>
+                      <Input
+                        type="number"
+                        value={pointsForm.pcon_points}
+                        onChange={(e) => setPointsForm(prev => ({...prev, pcon_points: e.target.value}))}
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={() => handleUpdatePoints(selectedUser.id)} className="bg-copper hover:bg-copper/90 text-black">
+                    Atualizar Pontos
+                  </Button>
+                </TabsContent>
+                <TabsContent value="moderation" className="space-y-4">
+                  <div>
+                    <Label className="text-gray-300">Motivo</Label>
+                    <Textarea
+                      value={moderationForm.reason}
+                      onChange={(e) => setModerationForm(prev => ({...prev, reason: e.target.value}))}
+                      className="bg-gray-800 border-gray-700 text-white"
+                      placeholder="Motivo da ação de moderação..."
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-300">Expira em (opcional)</Label>
+                    <Input
+                      type="datetime-local"
+                      value={moderationForm.expires}
+                      onChange={(e) => setModerationForm(prev => ({...prev, expires: e.target.value}))}
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      onClick={() => handleUserModeration(selectedUser.id, selectedUser.is_banned ? 'unban' : 'ban')}
+                      variant={selectedUser.is_banned ? "outline" : "destructive"}
+                    >
+                      {selectedUser.is_banned ? 'Desbanir' : 'Banir'}
+                    </Button>
+                    <Button 
+                      onClick={() => handleUserModeration(selectedUser.id, selectedUser.is_muted ? 'unmute' : 'mute')}
+                      variant={selectedUser.is_muted ? "outline" : "secondary"}
+                    >
+                      {selectedUser.is_muted ? 'Desmutar' : 'Mutar'}
+                    </Button>
+                    <Button 
+                      onClick={() => handleUserModeration(selectedUser.id, selectedUser.is_silenced ? 'unsilence' : 'silence')}
+                      variant="secondary"
+                    >
+                      {selectedUser.is_silenced ? 'Dessilenciar' : 'Silenciar'}
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Company Management Modal */}
+        {showCompanyModal && selectedCompany && (
+          <Dialog open={showCompanyModal} onOpenChange={setShowCompanyModal}>
+            <DialogContent className="bg-gray-900 border-copper/20">
+              <DialogHeader>
+                <DialogTitle className="text-white">Gerenciar: {selectedCompany.name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Motivo</Label>
+                  <Textarea
+                    value={moderationForm.reason}
+                    onChange={(e) => setModerationForm(prev => ({...prev, reason: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="Motivo da ação de moderação..."
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Expira em (opcional)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={moderationForm.expires}
+                    onChange={(e) => setModerationForm(prev => ({...prev, expires: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                  />
+                </div>
+                <Button 
+                  onClick={() => handleCompanyModeration(selectedCompany.id, selectedCompany.is_banned ? 'unban' : 'ban')}
+                  variant={selectedCompany.is_banned ? "outline" : "destructive"}
+                  className="w-full"
+                >
+                  {selectedCompany.is_banned ? 'Desbanir Empresa' : 'Banir Empresa'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
