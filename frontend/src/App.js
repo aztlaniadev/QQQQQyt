@@ -1429,20 +1429,215 @@ const Connect = () => {
   );
 };
 
-const Store = () => (
-  <div className="min-h-screen bg-black">
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Loja PCon</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <ShoppingCart className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Loja de Vantagens</h3>
-          <p className="text-gray-400">Use seus PCon para comprar vantagens...</p>
-        </CardContent>
-      </Card>
+const Store = () => {
+  const { user } = useAuth();
+  const [storeItems, setStoreItems] = useState([]);
+  const [purchases, setPurchases] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStoreItems();
+  }, []);
+
+  const fetchStoreItems = async () => {
+    try {
+      const response = await axios.get(`${API}/store`);
+      setStoreItems(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar itens da loja:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePurchase = async (itemId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/store/purchase/${itemId}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Refresh user data to update PCon balance
+      window.location.reload();
+    } catch (error) {
+      console.error('Erro ao comprar item:', error);
+      alert('Erro ao comprar item. Verifique se você tem PCon suficientes.');
+    }
+  };
+
+  const categoryIcons = {
+    features: Zap,
+    cosmetic: Star,
+    premium: Crown
+  };
+
+  const categoryNames = {
+    features: 'Funcionalidades',
+    cosmetic: 'Cosméticos',
+    premium: 'Premium'
+  };
+
+  const groupedItems = storeItems.reduce((acc, item) => {
+    if (!acc[item.category]) {
+      acc[item.category] = [];
+    }
+    acc[item.category].push(item);
+    return acc;
+  }, {});
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-white">Loja PCon</h1>
+          {user && (
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Seu saldo</p>
+                <div className="flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-amber-400" />
+                  <span className="text-xl font-bold text-amber-400">{user.pcon_points || 0}</span>
+                  <span className="text-gray-400">PCon</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {!user && (
+          <Card className="mb-6 bg-gray-900 border-yellow-500/20">
+            <CardContent className="p-4 text-center">
+              <p className="text-yellow-200">
+                <strong>Faça login</strong> para ver seus PCon e fazer compras na loja.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {user?.is_company && (
+          <Card className="mb-6 bg-gray-900 border-blue-500/20">
+            <CardContent className="p-4 text-center">
+              <p className="text-blue-200">
+                A loja PCon é exclusiva para usuários desenvolvedores. Empresas não podem fazer compras.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {loading ? (
+          <div className="text-center text-gray-400">Carregando loja...</div>
+        ) : (
+          <div className="space-y-8">
+            {Object.entries(groupedItems).map(([category, items]) => {
+              const IconComponent = categoryIcons[category] || ShoppingCart;
+              
+              return (
+                <div key={category}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <IconComponent className="h-6 w-6 text-copper" />
+                    <h2 className="text-2xl font-bold text-white">
+                      {categoryNames[category] || category}
+                    </h2>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {items.map(item => (
+                      <Card key={item.id} className="bg-gray-900 border-gray-700 hover:border-copper/50 transition-colors">
+                        <CardContent className="p-6">
+                          <div className="mb-4">
+                            <h3 className="text-lg font-semibold text-white mb-2">{item.name}</h3>
+                            <p className="text-gray-300 text-sm mb-4">{item.description}</p>
+                            
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-2">
+                                <Coins className="h-5 w-5 text-amber-400" />
+                                <span className="text-xl font-bold text-amber-400">{item.cost_pcon}</span>
+                                <span className="text-gray-400">PCon</span>
+                              </div>
+                              
+                              <Badge 
+                                variant="secondary" 
+                                className={
+                                  category === 'features' ? 'bg-blue-500/20 text-blue-400' :
+                                  category === 'cosmetic' ? 'bg-purple-500/20 text-purple-400' :
+                                  'bg-yellow-500/20 text-yellow-400'
+                                }
+                              >
+                                {categoryNames[category]}
+                              </Badge>
+                            </div>
+                            
+                            {user && !user.is_company ? (
+                              <Button 
+                                onClick={() => handlePurchase(item.id)}
+                                disabled={user.pcon_points < item.cost_pcon}
+                                className={
+                                  user.pcon_points >= item.cost_pcon 
+                                    ? "w-full bg-copper hover:bg-copper/90 text-black"
+                                    : "w-full"
+                                }
+                                variant={user.pcon_points >= item.cost_pcon ? "default" : "secondary"}
+                              >
+                                {user.pcon_points >= item.cost_pcon ? (
+                                  <>
+                                    <ShoppingCart className="h-4 w-4 mr-2" />
+                                    Comprar
+                                  </>
+                                ) : (
+                                  <>PCon insuficientes</>
+                                )}
+                              </Button>
+                            ) : (
+                              <Button disabled className="w-full" variant="secondary">
+                                {!user ? 'Faça login para comprar' : 'Não disponível para empresas'}
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            
+            {storeItems.length === 0 && (
+              <div className="text-center text-gray-400 py-8">
+                <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum item disponível na loja no momento.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {user && !user.is_company && (
+          <Card className="mt-8 bg-gray-900 border-copper/20">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Target className="h-5 w-5 text-copper" />
+                Como ganhar PCon
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  <p className="text-gray-300">• <strong>Criar perguntas:</strong> +5 PCon</p>
+                  <p className="text-gray-300">• <strong>Respostas validadas:</strong> +10 PCon</p>
+                  <p className="text-gray-300">• <strong>Respostas aceitas:</strong> +25 PCon</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-gray-300">• <strong>Receber upvotes:</strong> +1 PCon</p>
+                  <p className="text-gray-300">• <strong>Publicar artigos:</strong> +50 PCon</p>
+                  <p className="text-gray-300">• <strong>Conquistas especiais:</strong> PCon variável</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Jobs = () => (
   <div className="min-h-screen bg-black">
