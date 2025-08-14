@@ -300,8 +300,7 @@ async def create_answer(answer_data: AnswerCreate, current_user: dict = Depends(
         {"$inc": {"answers_count": 1}}
     )
     
-    # Award PCon points for answering
-    await update_user_points(current_user["id"], pcon_delta=10)
+    # NÃO CONCEDER PONTOS AUTOMATICAMENTE - apenas após validação por admin
     
     return answer
 
