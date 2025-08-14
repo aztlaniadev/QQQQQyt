@@ -350,12 +350,12 @@ class AcodeLabAPITester:
     def test_admin_login(self):
         """Test admin login with provided credentials"""
         admin_login_data = {
-            "email": "admin@acodelab.com",
+            "email": "admin@teste.com",
             "password": "Admin123!"
         }
         
         success, response = self.run_test(
-            "Admin Login",
+            "Admin Login (admin@teste.com)",
             "POST",
             "auth/login",
             200,
@@ -374,11 +374,45 @@ class AcodeLabAPITester:
             
             # Verify admin flag
             if response['user'].get('is_admin', False):
-                self.log(f"   ✅ Admin user confirmed: {response['user']['username']}")
+                self.log(f"   ✅ Admin user confirmed: {response['user'].get('username', response['user'].get('email'))}")
                 self.log(f"   Admin ID: {response['user']['id']}")
+                self.log(f"   is_admin: {response['user']['is_admin']}")
                 return True
             else:
                 self.log("   ❌ User is not marked as admin")
+                self.log(f"   Response user data: {response['user']}")
+                return False
+        return False
+
+    def test_normal_user_login(self):
+        """Test normal user login with provided credentials"""
+        normal_user_login_data = {
+            "email": "usuario@teste.com",
+            "password": "Usuario123!"
+        }
+        
+        success, response = self.run_test(
+            "Normal User Login (usuario@teste.com)",
+            "POST",
+            "auth/login",
+            200,
+            data=normal_user_login_data
+        )
+        
+        if success and 'token' in response:
+            # Store normal user token
+            self.test_data['normal_user_token'] = response['token']
+            self.test_data['normal_user_id'] = response['user']['id']
+            
+            # Verify NOT admin flag
+            if not response['user'].get('is_admin', True):
+                self.log(f"   ✅ Normal user confirmed: {response['user'].get('username', response['user'].get('email'))}")
+                self.log(f"   User ID: {response['user']['id']}")
+                self.log(f"   is_admin: {response['user'].get('is_admin', False)}")
+                return True
+            else:
+                self.log("   ❌ User is marked as admin when it shouldn't be")
+                self.log(f"   Response user data: {response['user']}")
                 return False
         return False
 
