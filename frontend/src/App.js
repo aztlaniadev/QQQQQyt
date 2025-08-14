@@ -1168,20 +1168,266 @@ const ArticlesList = () => {
   );
 };
 
-const Connect = () => (
-  <div className="min-h-screen bg-black">
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Acode Lab: Connect</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <Users className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Rede Social</h3>
-          <p className="text-gray-400">Conecte-se com outros desenvolvedores...</p>
-        </CardContent>
-      </Card>
+const Connect = () => {
+  const { user } = useAuth();
+  const [posts, setPosts] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [newPost, setNewPost] = useState({
+    content: '',
+    post_type: 'text',
+    metadata: {}
+  });
+
+  useEffect(() => {
+    fetchFeed();
+    fetchUsers();
+  }, []);
+
+  const fetchFeed = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API}/feed`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPosts(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar feed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get(`${API}/leaderboard?type=pc&limit=10`);
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+    }
+  };
+
+  const handleCreatePost = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/posts`, newPost, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setShowCreatePost(false);
+      setNewPost({ content: '', post_type: 'text', metadata: {} });
+      fetchFeed();
+    } catch (error) {
+      console.error('Erro ao criar post:', error);
+    }
+  };
+
+  const handleFollowUser = async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/users/${userId}/follow`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Refresh feed after following
+      fetchFeed();
+    } catch (error) {
+      console.error('Erro ao seguir usuário:', error);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-white mb-8">Acode Lab: Connect</h1>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Feed Principal */}
+          <div className="lg:col-span-2">
+            {user && !user.is_company && (
+              <Card className="mb-6 bg-gray-900 border-copper/20">
+                <CardContent className="p-4">
+                  {!showCreatePost ? (
+                    <Button 
+                      onClick={() => setShowCreatePost(true)}
+                      className="w-full bg-gray-800 hover:bg-gray-700 text-left justify-start"
+                      variant="outline"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      O que você está pensando, {user.username}?
+                    </Button>
+                  ) : (
+                    <form onSubmit={handleCreatePost} className="space-y-4">
+                      <Textarea
+                        value={newPost.content}
+                        onChange={(e) => setNewPost(prev => ({...prev, content: e.target.value}))}
+                        placeholder="Compartilhe seus pensamentos, projetos ou conquistas..."
+                        className="bg-gray-800 border-gray-700 text-white"
+                        rows={4}
+                        required
+                      />
+                      <div className="flex items-center gap-2">
+                        <Select value={newPost.post_type} onValueChange={(value) => setNewPost(prev => ({...prev, post_type: value}))}>
+                          <SelectTrigger className="w-40 bg-gray-800 border-gray-700">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Texto</SelectItem>
+                            <SelectItem value="project">Projeto</SelectItem>
+                            <SelectItem value="achievement">Conquista</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <div className="flex gap-2 ml-auto">
+                          <Button type="submit" className="bg-copper hover:bg-copper/90 text-black">
+                            Publicar
+                          </Button>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => setShowCreatePost(false)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {loading ? (
+              <div className="text-center text-gray-400">Carregando feed...</div>
+            ) : (
+              <div className="space-y-4">
+                {posts.map(post => (
+                  <Card key={post.id} className="bg-gray-900 border-gray-700">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-3 mb-4">
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className="bg-copper text-black">
+                            {post.author_username[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold text-white">{post.author_username}</h4>
+                            <Badge variant="secondary" className="text-xs">
+                              {post.post_type === 'project' ? 'Projeto' : 
+                               post.post_type === 'achievement' ? 'Conquista' : 'Post'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-400">
+                            {new Date(post.created_at).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <p className="text-white mb-4 whitespace-pre-wrap">{post.content}</p>
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <button className="flex items-center gap-1 hover:text-red-400 transition-colors">
+                          <Heart className="h-4 w-4" />
+                          <span>{post.likes}</span>
+                        </button>
+                        <button className="flex items-center gap-1 hover:text-blue-400 transition-colors">
+                          <MessageSquare className="h-4 w-4" />
+                          <span>{post.comments_count}</span>
+                        </button>
+                        <button className="flex items-center gap-1 hover:text-green-400 transition-colors">
+                          <Share2 className="h-4 w-4" />
+                          Compartilhar
+                        </button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                {posts.length === 0 && (
+                  <div className="text-center text-gray-400 py-8">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhum post ainda. Siga outros usuários para ver conteúdo!</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            <Card className="bg-gray-900 border-copper/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-copper" />
+                  Top Usuários
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {users.slice(0, 5).map((topUser, index) => (
+                    <div key={topUser.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 bg-copper/20 rounded-full text-copper font-bold text-sm">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">{topUser.username}</p>
+                          <p className="text-xs text-gray-400">{topUser.pc_points} PC</p>
+                        </div>
+                      </div>
+                      {user && topUser.id !== user.id && !user.is_company && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleFollowUser(topUser.id)}
+                        >
+                          Seguir
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {user && (
+              <Card className="bg-gray-900 border-copper/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Suas Estatísticas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Rank</span>
+                      <span className="text-copper font-semibold">{user.rank}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">PC</span>
+                      <span className="text-white">{user.pc_points}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">PCon</span>
+                      <span className="text-amber-400">{user.pcon_points}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Seguindo</span>
+                      <span className="text-white">{user.following?.length || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Seguidores</span>
+                      <span className="text-white">{user.followers?.length || 0}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Store = () => (
   <div className="min-h-screen bg-black">
