@@ -484,6 +484,11 @@ async def get_user_stats(user_id: str):
         "validated_answers": validated_answers
     }
 
+# Health check
+@api_router.get("/")
+async def root():
+    return {"message": "Acode Lab API - Sistema Q&A"}
+
 # Include the router in the main app
 app.include_router(api_router)
 
