@@ -416,10 +416,55 @@ class AcodeLabAPITester:
                 return False
         return False
 
-    def test_admin_get_me(self):
-        """Test admin /auth/me endpoint"""
+    def test_admin_get_stats(self):
+        """Test admin can access stats endpoint"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
         success, response = self.run_test(
-            "Admin Get Current User",
+            "Admin Get Stats",
+            "GET",
+            "admin/stats",
+            200
+        )
+        
+        if success and isinstance(response, dict):
+            self.log(f"   Total users: {response.get('total_users', 0)}")
+            self.log(f"   Total companies: {response.get('total_companies', 0)}")
+            self.log(f"   Total questions: {response.get('total_questions', 0)}")
+            self.log(f"   Total answers: {response.get('total_answers', 0)}")
+            self.log(f"   Pending answers: {response.get('pending_answers', 0)}")
+            self.log(f"   Total articles: {response.get('total_articles', 0)}")
+            return True
+        return False
+
+    def test_normal_user_cannot_access_admin_stats(self):
+        """Test that normal user cannot access admin stats"""
+        # Switch to normal user token
+        if self.test_data.get('normal_user_token'):
+            self.token = self.test_data['normal_user_token']
+        
+        success, response = self.run_test(
+            "Normal User Access Admin Stats (Should Fail)",
+            "GET",
+            "admin/stats",
+            403  # Should be forbidden
+        )
+        
+        if success:
+            self.log("   ✅ Normal user correctly denied access to admin stats")
+            return True
+        return False
+
+    def test_admin_auth_me(self):
+        """Test admin /auth/me endpoint returns correct data"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        success, response = self.run_test(
+            "Admin Auth Me",
             "GET",
             "auth/me",
             200
@@ -427,10 +472,38 @@ class AcodeLabAPITester:
         
         if success:
             if response.get('is_admin', False):
-                self.log(f"   ✅ Admin privileges confirmed")
+                self.log(f"   ✅ Admin privileges confirmed via /auth/me")
+                self.log(f"   Email: {response.get('email')}")
+                self.log(f"   is_admin: {response.get('is_admin')}")
                 return True
             else:
-                self.log("   ❌ Admin flag not found in response")
+                self.log("   ❌ Admin flag not found in /auth/me response")
+                self.log(f"   Response: {response}")
+                return False
+        return False
+
+    def test_normal_user_auth_me(self):
+        """Test normal user /auth/me endpoint returns correct data"""
+        # Switch to normal user token
+        if self.test_data.get('normal_user_token'):
+            self.token = self.test_data['normal_user_token']
+        
+        success, response = self.run_test(
+            "Normal User Auth Me",
+            "GET",
+            "auth/me",
+            200
+        )
+        
+        if success:
+            if not response.get('is_admin', True):
+                self.log(f"   ✅ Normal user confirmed via /auth/me")
+                self.log(f"   Email: {response.get('email')}")
+                self.log(f"   is_admin: {response.get('is_admin', False)}")
+                return True
+            else:
+                self.log("   ❌ User incorrectly marked as admin in /auth/me response")
+                self.log(f"   Response: {response}")
                 return False
         return False
 
