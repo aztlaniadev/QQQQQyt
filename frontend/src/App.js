@@ -122,6 +122,11 @@ const Header = () => {
                 <Link to="/perguntas" className="text-gray-300 hover:text-copper transition-colors">
                   Perguntas
                 </Link>
+                {user.is_admin && (
+                  <Link to="/admin" className="text-gray-300 hover:text-copper transition-colors">
+                    Admin
+                  </Link>
+                )}
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2 text-sm">
                     <div className="flex items-center space-x-1 text-copper">
