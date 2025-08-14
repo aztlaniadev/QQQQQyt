@@ -335,12 +335,6 @@ class WeeklyPortfolio(BaseModel):
     votes: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-class CompanyModeration(BaseModel):
-    company_id: str
-    action: str  # ban, unban
-    reason: str = ""
-    expires: Optional[datetime] = None
-
 class StoreItem(BaseModel):
     id: str
     name: str
