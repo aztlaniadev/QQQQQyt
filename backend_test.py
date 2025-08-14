@@ -341,6 +341,314 @@ class AcodeLabAPITester:
             self.log(f"   Questions: {response.get('questions_count', 0)}")
             self.log(f"   Answers: {response.get('answers_count', 0)}")
             self.log(f"   Accepted Answers: {response.get('accepted_answers', 0)}")
+            self.log(f"   Validated Answers: {response.get('validated_answers', 0)}")
+            return True
+        return False
+
+    # ===== ADMIN VALIDATION SYSTEM TESTS =====
+    
+    def test_admin_login(self):
+        """Test admin login with provided credentials"""
+        admin_login_data = {
+            "email": "admin@acodelab.com",
+            "password": "Admin123!"
+        }
+        
+        success, response = self.run_test(
+            "Admin Login",
+            "POST",
+            "auth/login",
+            200,
+            data=admin_login_data
+        )
+        
+        if success and 'token' in response:
+            # Store current user token for later restoration
+            self.test_data['user_token'] = self.token
+            self.test_data['user_id'] = self.user_id
+            
+            # Set admin token
+            self.token = response['token']
+            self.test_data['admin_token'] = response['token']
+            self.test_data['admin_id'] = response['user']['id']
+            
+            # Verify admin flag
+            if response['user'].get('is_admin', False):
+                self.log(f"   ✅ Admin user confirmed: {response['user']['username']}")
+                self.log(f"   Admin ID: {response['user']['id']}")
+                return True
+            else:
+                self.log("   ❌ User is not marked as admin")
+                return False
+        return False
+
+    def test_admin_get_me(self):
+        """Test admin /auth/me endpoint"""
+        success, response = self.run_test(
+            "Admin Get Current User",
+            "GET",
+            "auth/me",
+            200
+        )
+        
+        if success:
+            if response.get('is_admin', False):
+                self.log(f"   ✅ Admin privileges confirmed")
+                return True
+            else:
+                self.log("   ❌ Admin flag not found in response")
+                return False
+        return False
+
+    def test_normal_user_create_answer_no_points(self):
+        """Test that normal user creating answer doesn't get points immediately"""
+        # Switch back to normal user
+        if self.test_data.get('user_token'):
+            self.token = self.test_data['user_token']
+            self.user_id = self.test_data['user_id']
+        
+        # Get current user points before creating answer
+        success, user_before = self.run_test(
+            "Get User Before Answer",
+            "GET",
+            "auth/me",
+            200
+        )
+        
+        if not success:
+            return False
+            
+        pc_before = user_before.get('pc_points', 0)
+        pcon_before = user_before.get('pcon_points', 0)
+        
+        # Create a new question first for testing
+        question_data = {
+            "title": "Teste de validação por admin",
+            "content": "Esta pergunta é para testar o sistema de validação por administrador.",
+            "tags": ["teste", "admin", "validacao"]
+        }
+        
+        success, question_response = self.run_test(
+            "Create Test Question for Validation",
+            "POST",
+            "questions",
+            200,
+            data=question_data
+        )
+        
+        if not success:
+            return False
+            
+        test_question_id = question_response['id']
+        self.test_data['validation_question_id'] = test_question_id
+        
+        # Create answer
+        answer_data = {
+            "content": "Esta é uma resposta de teste que deve aguardar validação por um administrador antes de conceder pontos.",
+            "question_id": test_question_id
+        }
+        
+        success, answer_response = self.run_test(
+            "Create Answer (Should Not Give Points)",
+            "POST",
+            "answers",
+            200,
+            data=answer_data
+        )
+        
+        if not success:
+            return False
+            
+        self.test_data['validation_answer_id'] = answer_response['id']
+        
+        # Check answer is not validated
+        if answer_response.get('is_validated', True):  # Should be False
+            self.log("   ❌ Answer is marked as validated immediately")
+            return False
+        else:
+            self.log("   ✅ Answer correctly marked as not validated")
+        
+        # Get user points after creating answer
+        success, user_after = self.run_test(
+            "Get User After Answer",
+            "GET",
+            "auth/me",
+            200
+        )
+        
+        if not success:
+            return False
+            
+        pc_after = user_after.get('pc_points', 0)
+        pcon_after = user_after.get('pcon_points', 0)
+        
+        # Verify no points were given
+        if pc_after == pc_before and pcon_after == pcon_before:
+            self.log(f"   ✅ No points given immediately (PC: {pc_before}→{pc_after}, PCon: {pcon_before}→{pcon_after})")
+            return True
+        else:
+            self.log(f"   ❌ Points were given immediately (PC: {pc_before}→{pc_after}, PCon: {pcon_before}→{pcon_after})")
+            return False
+
+    def test_admin_get_pending_answers(self):
+        """Test admin can get pending answers"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        success, response = self.run_test(
+            "Admin Get Pending Answers",
+            "GET",
+            "admin/answers/pending",
+            200
+        )
+        
+        if success and isinstance(response, list):
+            self.log(f"   Found {len(response)} pending answers")
+            # Check if our test answer is in the list
+            test_answer_id = self.test_data.get('validation_answer_id')
+            if test_answer_id:
+                found_test_answer = any(answer['id'] == test_answer_id for answer in response)
+                if found_test_answer:
+                    self.log(f"   ✅ Test answer found in pending list")
+                else:
+                    self.log(f"   ⚠️  Test answer not found in pending list")
+            return True
+        return False
+
+    def test_normal_user_cannot_access_admin_routes(self):
+        """Test that normal user cannot access admin routes"""
+        # Switch back to normal user
+        if self.test_data.get('user_token'):
+            self.token = self.test_data['user_token']
+        
+        success, response = self.run_test(
+            "Normal User Access Admin Route (Should Fail)",
+            "GET",
+            "admin/answers/pending",
+            403  # Should be forbidden
+        )
+        
+        if success:
+            self.log("   ✅ Normal user correctly denied access to admin routes")
+            return True
+        return False
+
+    def test_admin_validate_answer(self):
+        """Test admin can validate answer and points are given"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        # Get the answer author's points before validation
+        # Switch to user token to get current points
+        if self.test_data.get('user_token'):
+            temp_token = self.token
+            self.token = self.test_data['user_token']
+            
+            success, user_before = self.run_test(
+                "Get User Points Before Validation",
+                "GET",
+                "auth/me",
+                200
+            )
+            
+            if not success:
+                return False
+                
+            pc_before = user_before.get('pc_points', 0)
+            pcon_before = user_before.get('pcon_points', 0)
+            
+            # Switch back to admin
+            self.token = temp_token
+        
+        # Validate the answer
+        answer_id = self.test_data.get('validation_answer_id')
+        if not answer_id:
+            self.log("❌ No validation answer ID available", "ERROR")
+            return False
+        
+        success, response = self.run_test(
+            "Admin Validate Answer",
+            "POST",
+            f"admin/answers/{answer_id}/validate",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Check user got points after validation
+        if self.test_data.get('user_token'):
+            temp_token = self.token
+            self.token = self.test_data['user_token']
+            
+            success, user_after = self.run_test(
+                "Get User Points After Validation",
+                "GET",
+                "auth/me",
+                200
+            )
+            
+            if success:
+                pc_after = user_after.get('pc_points', 0)
+                pcon_after = user_after.get('pcon_points', 0)
+                
+                # Expected: +5 PC, +10 PCon for validated answer
+                if pc_after > pc_before and pcon_after > pcon_before:
+                    self.log(f"   ✅ Points awarded after validation (PC: {pc_before}→{pc_after}, PCon: {pcon_before}→{pcon_after})")
+                    # Switch back to admin
+                    self.token = temp_token
+                    return True
+                else:
+                    self.log(f"   ❌ Points not awarded (PC: {pc_before}→{pc_after}, PCon: {pcon_before}→{pcon_after})")
+                    # Switch back to admin
+                    self.token = temp_token
+                    return False
+            
+            # Switch back to admin
+            self.token = temp_token
+        
+        return False
+
+    def test_admin_reject_answer(self):
+        """Test admin can reject answer"""
+        # Create another answer to reject
+        if self.test_data.get('user_token'):
+            temp_token = self.token
+            self.token = self.test_data['user_token']
+            
+            answer_data = {
+                "content": "Esta resposta será rejeitada pelo administrador.",
+                "question_id": self.test_data.get('validation_question_id')
+            }
+            
+            success, answer_response = self.run_test(
+                "Create Answer to Reject",
+                "POST",
+                "answers",
+                200,
+                data=answer_data
+            )
+            
+            if not success:
+                return False
+                
+            reject_answer_id = answer_response['id']
+            
+            # Switch back to admin
+            self.token = temp_token
+        
+        # Reject the answer
+        success, response = self.run_test(
+            "Admin Reject Answer",
+            "POST",
+            f"admin/answers/{reject_answer_id}/reject",
+            200
+        )
+        
+        if success:
+            self.log("   ✅ Answer rejected successfully")
             return True
         return False
 
