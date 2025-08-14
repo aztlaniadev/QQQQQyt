@@ -39,10 +39,15 @@ security = HTTPBearer()
 # Enums
 class UserRank(str, Enum):
     INICIANTE = "Iniciante"
-    COLABORADOR = "Colaborador"  
+    COLABORADOR = "Colaborador"
     ESPECIALISTA = "Especialista"
     MESTRE = "Mestre"
     GURU = "Guru"
+
+class SubscriptionPlan(str, Enum):
+    BASIC = "Basic"
+    PRO = "Pro"
+    ENTERPRISE = "Enterprise"
 
 # Models
 class User(BaseModel):
@@ -50,13 +55,36 @@ class User(BaseModel):
     username: str
     email: str
     password_hash: str
-    pc_points: int = 0  # Pontos de Classificação (reputação)
-    pcon_points: int = 0  # Pontos de Conquista (moeda)
+    pc_points: int = 0
+    pcon_points: int = 0
     rank: UserRank = UserRank.INICIANTE
-    is_admin: bool = False  # Flag para administrador
+    is_admin: bool = False
+    is_company: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     bio: str = ""
     location: str = ""
+    website: str = ""
+    github: str = ""
+    linkedin: str = ""
+    skills: List[str] = []
+    experience: str = ""
+    portfolio_projects: List[dict] = []
+    following: List[str] = []
+    followers: List[str] = []
+    achievements: List[str] = []
+
+class Company(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    email: str
+    password_hash: str
+    description: str = ""
+    website: str = ""
+    location: str = ""
+    size: str = ""
+    subscription_plan: SubscriptionPlan = SubscriptionPlan.BASIC
+    subscription_expires: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class UserCreate(BaseModel):
     username: str
@@ -64,6 +92,15 @@ class UserCreate(BaseModel):
     password: str
     bio: Optional[str] = ""
     location: Optional[str] = ""
+
+class CompanyCreate(BaseModel):
+    name: str
+    email: str
+    password: str
+    description: Optional[str] = ""
+    website: Optional[str] = ""
+    location: Optional[str] = ""
+    size: Optional[str] = ""
 
 class UserLogin(BaseModel):
     email: str
@@ -78,13 +115,24 @@ class UserResponse(BaseModel):
     rank: UserRank
     bio: str
     location: str
+    website: str
+    github: str
+    linkedin: str
+    skills: List[str]
+    experience: str
+    portfolio_projects: List[dict]
+    following: List[str]
+    followers: List[str]
+    achievements: List[str]
     is_admin: bool = False
+    is_company: bool = False
     created_at: datetime
 
 class Question(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
     content: str
+    code: str = ""
     tags: List[str] = []
     author_id: str
     author_username: str
@@ -92,45 +140,151 @@ class Question(BaseModel):
     downvotes: int = 0
     answers_count: int = 0
     views: int = 0
+    is_featured: bool = False
+    featured_until: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class QuestionCreate(BaseModel):
     title: str
     content: str
+    code: Optional[str] = ""
     tags: List[str] = []
 
 class Answer(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content: str
+    code: str = ""
     question_id: str
     author_id: str
     author_username: str
     upvotes: int = 0
     downvotes: int = 0
     is_accepted: bool = False
-    is_validated: bool = False  # Validado por administrador
-    validated_by: Optional[str] = None  # ID do admin que validou
+    is_validated: bool = False
+    validated_by: Optional[str] = None
     validated_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class AnswerCreate(BaseModel):
     content: str
+    code: Optional[str] = ""
     question_id: str
+
+class Comment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    content: str
+    target_id: str  # question_id or answer_id
+    target_type: str  # "question" or "answer"
+    author_id: str
+    author_username: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CommentCreate(BaseModel):
+    content: str
+    target_id: str
+    target_type: str
+
+class Article(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    content: str
+    excerpt: str = ""
+    tags: List[str] = []
+    author_id: str
+    author_username: str
+    published: bool = False
+    upvotes: int = 0
+    downvotes: int = 0
+    views: int = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ArticleCreate(BaseModel):
+    title: str
+    content: str
+    excerpt: Optional[str] = ""
+    tags: List[str] = []
+    published: bool = False
+
+class Post(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    content: str
+    author_id: str
+    author_username: str
+    post_type: str = "text"  # text, project, achievement
+    metadata: dict = {}
+    likes: int = 0
+    comments_count: int = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class PostCreate(BaseModel):
+    content: str
+    post_type: str = "text"
+    metadata: dict = {}
 
 class Vote(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
-    target_id: str  # question_id or answer_id
-    target_type: str  # "question" or "answer"
-    vote_type: str  # "upvote" or "downvote"
+    target_id: str
+    target_type: str
+    vote_type: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class VoteRequest(BaseModel):
     target_id: str
-    target_type: str  # "question" or "answer"
-    vote_type: str  # "upvote" or "downvote"
+    target_type: str
+    vote_type: str
+
+class Job(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    requirements: str
+    salary_range: str = ""
+    location: str = ""
+    remote: bool = False
+    company_id: str
+    company_name: str
+    tags: List[str] = []
+    applications_count: int = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(days=30))
+
+class JobCreate(BaseModel):
+    title: str
+    description: str
+    requirements: str
+    salary_range: Optional[str] = ""
+    location: Optional[str] = ""
+    remote: bool = False
+    tags: List[str] = []
+
+class StoreItem(BaseModel):
+    id: str
+    name: str
+    description: str
+    cost_pcon: int
+    category: str
+    metadata: dict = {}
+
+class Purchase(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    item_id: str
+    item_name: str
+    cost_pcon: int
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Store items definition
+STORE_ITEMS = [
+    StoreItem(id="feature_question", name="Destacar Pergunta", description="Destaque sua pergunta por 7 dias", cost_pcon=50, category="features"),
+    StoreItem(id="custom_badge", name="Badge Personalizado", description="Crie um badge único para seu perfil", cost_pcon=100, category="cosmetic"),
+    StoreItem(id="premium_content", name="Conteúdo Premium", description="Acesso a artigos exclusivos por 30 dias", cost_pcon=200, category="premium"),
+    StoreItem(id="direct_messages", name="Mensagens Ilimitadas", description="Envie mensagens diretas ilimitadas por 30 dias", cost_pcon=150, category="features"),
+    StoreItem(id="profile_theme", name="Tema de Perfil", description="Personalize as cores do seu perfil", cost_pcon=75, category="cosmetic"),
+]
 
 # Helper functions
 def hash_password(password: str) -> str:
@@ -154,6 +308,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             raise HTTPException(status_code=401, detail="Token inválido")
         
         user = await db.users.find_one({"id": user_id})
+        if user is None:
+            user = await db.companies.find_one({"id": user_id})
+            if user:
+                user["is_company"] = True
+        
         if user is None:
             raise HTTPException(status_code=401, detail="Usuário não encontrado")
         
@@ -191,10 +350,15 @@ async def update_user_points(user_id: str, pc_delta: int = 0, pcon_delta: int = 
             }}
         )
 
+async def add_achievement(user_id: str, achievement: str):
+    await db.users.update_one(
+        {"id": user_id},
+        {"$addToSet": {"achievements": achievement}}
+    )
+
 # Authentication Routes
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate):
-    # Check if user exists
     existing_user = await db.users.find_one({"email": user_data.email})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email já cadastrado")
@@ -203,64 +367,159 @@ async def register(user_data: UserCreate):
     if existing_username:
         raise HTTPException(status_code=400, detail="Nome de usuário já existe")
     
-    # Create user
     user = User(
         username=user_data.username,
         email=user_data.email,
         password_hash=hash_password(user_data.password),
         bio=user_data.bio or "",
         location=user_data.location or "",
-        pcon_points=50  # Welcome bonus
+        pcon_points=50
     )
     
     await db.users.insert_one(user.dict())
+    await add_achievement(user.id, "first_join")
     
-    # Create JWT token
     token = create_jwt_token(user.id)
+    return {"token": token, "user": UserResponse(**user.dict())}
+
+@api_router.post("/auth/register-company")
+async def register_company(company_data: CompanyCreate):
+    existing_company = await db.companies.find_one({"email": company_data.email})
+    if existing_company:
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
     
-    return {
-        "token": token,
-        "user": UserResponse(**user.dict())
-    }
+    company = Company(
+        name=company_data.name,
+        email=company_data.email,
+        password_hash=hash_password(company_data.password),
+        description=company_data.description or "",
+        website=company_data.website or "",
+        location=company_data.location or "",
+        size=company_data.size or ""
+    )
+    
+    await db.companies.insert_one(company.dict())
+    
+    token = create_jwt_token(company.id)
+    return {"token": token, "company": company.dict()}
 
 @api_router.post("/auth/login")
 async def login(login_data: UserLogin):
     user = await db.users.find_one({"email": login_data.email})
-    if not user or not verify_password(login_data.password, user["password_hash"]):
+    if not user:
+        # Try company login
+        company = await db.companies.find_one({"email": login_data.email})
+        if not company or not verify_password(login_data.password, company["password_hash"]):
+            raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+        
+        token = create_jwt_token(company["id"])
+        company["is_company"] = True
+        return {"token": token, "user": company}
+    
+    if not verify_password(login_data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Email ou senha incorretos")
     
     token = create_jwt_token(user["id"])
-    
-    return {
-        "token": token,
-        "user": UserResponse(**user)
-    }
+    return {"token": token, "user": UserResponse(**user)}
 
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        return current_user
     return UserResponse(**current_user)
+
+# User Profile Routes
+@api_router.put("/users/profile")
+async def update_profile(profile_data: dict, current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Apenas usuários podem atualizar perfil")
+    
+    allowed_fields = ["bio", "location", "website", "github", "linkedin", "skills", "experience", "portfolio_projects"]
+    update_data = {k: v for k, v in profile_data.items() if k in allowed_fields}
+    
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": update_data}
+    )
+    
+    return {"message": "Perfil atualizado com sucesso"}
+
+@api_router.post("/users/{user_id}/follow")
+async def follow_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Empresas não podem seguir usuários")
+    
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="Não é possível seguir a si mesmo")
+    
+    target_user = await db.users.find_one({"id": user_id})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    # Add to following list
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$addToSet": {"following": user_id}}
+    )
+    
+    # Add to followers list
+    await db.users.update_one(
+        {"id": user_id},
+        {"$addToSet": {"followers": current_user["id"]}}
+    )
+    
+    return {"message": "Usuário seguido com sucesso"}
+
+@api_router.delete("/users/{user_id}/follow")
+async def unfollow_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Empresas não podem seguir usuários")
+    
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$pull": {"following": user_id}}
+    )
+    
+    await db.users.update_one(
+        {"id": user_id},
+        {"$pull": {"followers": current_user["id"]}}
+    )
+    
+    return {"message": "Deixou de seguir o usuário"}
 
 # Question Routes
 @api_router.post("/questions", response_model=Question)
 async def create_question(question_data: QuestionCreate, current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Empresas não podem fazer perguntas")
+    
     question = Question(
         title=question_data.title,
         content=question_data.content,
+        code=question_data.code or "",
         tags=question_data.tags,
         author_id=current_user["id"],
         author_username=current_user["username"]
     )
     
     await db.questions.insert_one(question.dict())
-    
-    # Award PCon points for creating question
     await update_user_points(current_user["id"], pcon_delta=5)
+    
+    # Check for first question achievement
+    user_questions = await db.questions.count_documents({"author_id": current_user["id"]})
+    if user_questions == 1:
+        await add_achievement(current_user["id"], "first_question")
     
     return question
 
 @api_router.get("/questions", response_model=List[Question])
-async def get_questions(skip: int = 0, limit: int = 20):
-    questions = await db.questions.find().sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+async def get_questions(skip: int = 0, limit: int = 20, featured: bool = False):
+    query = {}
+    if featured:
+        query["is_featured"] = True
+        query["featured_until"] = {"$gt": datetime.utcnow()}
+    
+    questions = await db.questions.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     return [Question(**q) for q in questions]
 
 @api_router.get("/questions/{question_id}", response_model=Question)
@@ -269,7 +528,6 @@ async def get_question(question_id: str):
     if not question:
         raise HTTPException(status_code=404, detail="Pergunta não encontrada")
     
-    # Increment views
     await db.questions.update_one(
         {"id": question_id},
         {"$inc": {"views": 1}}
@@ -281,13 +539,16 @@ async def get_question(question_id: str):
 # Answer Routes
 @api_router.post("/answers", response_model=Answer)
 async def create_answer(answer_data: AnswerCreate, current_user: dict = Depends(get_current_user)):
-    # Check if question exists
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Empresas não podem responder perguntas")
+    
     question = await db.questions.find_one({"id": answer_data.question_id})
     if not question:
         raise HTTPException(status_code=404, detail="Pergunta não encontrada")
     
     answer = Answer(
         content=answer_data.content,
+        code=answer_data.code or "",
         question_id=answer_data.question_id,
         author_id=current_user["id"],
         author_username=current_user["username"]
@@ -295,13 +556,15 @@ async def create_answer(answer_data: AnswerCreate, current_user: dict = Depends(
     
     await db.answers.insert_one(answer.dict())
     
-    # Update question answer count
     await db.questions.update_one(
         {"id": answer_data.question_id},
         {"$inc": {"answers_count": 1}}
     )
     
-    # NÃO CONCEDER PONTOS AUTOMATICAMENTE - apenas após validação por admin
+    # Check for first answer achievement
+    user_answers = await db.answers.count_documents({"author_id": current_user["id"]})
+    if user_answers == 1:
+        await add_achievement(current_user["id"], "first_answer")
     
     return answer
 
@@ -312,36 +575,252 @@ async def get_answers(question_id: str):
 
 @api_router.post("/answers/{answer_id}/accept")
 async def accept_answer(answer_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Empresas não podem aceitar respostas")
+    
     answer = await db.answers.find_one({"id": answer_id})
     if not answer:
         raise HTTPException(status_code=404, detail="Resposta não encontrada")
     
-    # Check if user owns the question
     question = await db.questions.find_one({"id": answer["question_id"]})
     if question["author_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="Apenas o autor da pergunta pode aceitar respostas")
     
-    # Unaccept other answers for this question
+    if not answer["is_validated"]:
+        raise HTTPException(status_code=400, detail="Apenas respostas validadas podem ser aceitas")
+    
     await db.answers.update_many(
         {"question_id": answer["question_id"]},
         {"$set": {"is_accepted": False}}
     )
     
-    # Accept this answer
     await db.answers.update_one(
         {"id": answer_id},
         {"$set": {"is_accepted": True}}
     )
     
-    # Award PC points to answer author
     await update_user_points(answer["author_id"], pc_delta=15, pcon_delta=25)
+    await add_achievement(answer["author_id"], "first_accepted_answer")
     
     return {"message": "Resposta aceita com sucesso"}
+
+# Comment Routes
+@api_router.post("/comments", response_model=Comment)
+async def create_comment(comment_data: CommentCreate, current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        username = current_user["name"]
+    else:
+        username = current_user["username"]
+    
+    comment = Comment(
+        content=comment_data.content,
+        target_id=comment_data.target_id,
+        target_type=comment_data.target_type,
+        author_id=current_user["id"],
+        author_username=username
+    )
+    
+    await db.comments.insert_one(comment.dict())
+    return comment
+
+@api_router.get("/comments/{target_type}/{target_id}")
+async def get_comments(target_type: str, target_id: str):
+    comments = await db.comments.find({
+        "target_type": target_type,
+        "target_id": target_id
+    }).sort("created_at", 1).to_list(1000)
+    return [Comment(**c) for c in comments]
+
+# Article Routes
+@api_router.post("/articles", response_model=Article)
+async def create_article(article_data: ArticleCreate, current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Empresas não podem escrever artigos")
+    
+    # Only Mestre and Guru can write articles
+    if current_user["rank"] not in ["Mestre", "Guru"]:
+        raise HTTPException(status_code=403, detail="Apenas usuários Mestre ou Guru podem escrever artigos")
+    
+    article = Article(
+        title=article_data.title,
+        content=article_data.content,
+        excerpt=article_data.excerpt or article_data.content[:200] + "...",
+        tags=article_data.tags,
+        author_id=current_user["id"],
+        author_username=current_user["username"],
+        published=article_data.published
+    )
+    
+    await db.articles.insert_one(article.dict())
+    
+    if article_data.published:
+        await update_user_points(current_user["id"], pcon_delta=50)
+    
+    return article
+
+@api_router.get("/articles")
+async def get_articles(skip: int = 0, limit: int = 20, published_only: bool = True):
+    query = {"published": True} if published_only else {}
+    articles = await db.articles.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    return [Article(**a) for a in articles]
+
+@api_router.get("/articles/{article_id}")
+async def get_article(article_id: str):
+    article = await db.articles.find_one({"id": article_id})
+    if not article:
+        raise HTTPException(status_code=404, detail="Artigo não encontrado")
+    
+    await db.articles.update_one(
+        {"id": article_id},
+        {"$inc": {"views": 1}}
+    )
+    article["views"] += 1
+    
+    return Article(**article)
+
+# Social Feed Routes
+@api_router.post("/posts", response_model=Post)
+async def create_post(post_data: PostCreate, current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        username = current_user["name"]
+    else:
+        username = current_user["username"]
+    
+    post = Post(
+        content=post_data.content,
+        author_id=current_user["id"],
+        author_username=username,
+        post_type=post_data.post_type,
+        metadata=post_data.metadata
+    )
+    
+    await db.posts.insert_one(post.dict())
+    return post
+
+@api_router.get("/feed")
+async def get_feed(current_user: dict = Depends(get_current_user), skip: int = 0, limit: int = 20):
+    if current_user.get("is_company"):
+        # Companies see all posts
+        posts = await db.posts.find().sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    else:
+        # Users see posts from followed users
+        following = current_user.get("following", [])
+        following.append(current_user["id"])  # Include own posts
+        
+        posts = await db.posts.find({
+            "author_id": {"$in": following}
+        }).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    return [Post(**p) for p in posts]
+
+# Store Routes
+@api_router.get("/store")
+async def get_store_items():
+    return STORE_ITEMS
+
+@api_router.post("/store/purchase/{item_id}")
+async def purchase_item(item_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Empresas não podem comprar itens")
+    
+    item = next((item for item in STORE_ITEMS if item.id == item_id), None)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+    
+    if current_user["pcon_points"] < item.cost_pcon:
+        raise HTTPException(status_code=400, detail="PCon insuficientes")
+    
+    # Deduct points
+    await update_user_points(current_user["id"], pcon_delta=-item.cost_pcon)
+    
+    # Record purchase
+    purchase = Purchase(
+        user_id=current_user["id"],
+        item_id=item.id,
+        item_name=item.name,
+        cost_pcon=item.cost_pcon
+    )
+    
+    await db.purchases.insert_one(purchase.dict())
+    
+    # Apply item effects
+    if item_id == "feature_question":
+        # This would be handled when creating a question
+        pass
+    elif item_id == "custom_badge":
+        await add_achievement(current_user["id"], "custom_badge_owner")
+    
+    return {"message": f"Item '{item.name}' comprado com sucesso!"}
+
+# Job Routes (B2B)
+@api_router.post("/jobs", response_model=Job)
+async def create_job(job_data: JobCreate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Apenas empresas podem publicar vagas")
+    
+    job = Job(
+        title=job_data.title,
+        description=job_data.description,
+        requirements=job_data.requirements,
+        salary_range=job_data.salary_range or "",
+        location=job_data.location or "",
+        remote=job_data.remote,
+        company_id=current_user["id"],
+        company_name=current_user["name"],
+        tags=job_data.tags
+    )
+    
+    await db.jobs.insert_one(job.dict())
+    return job
+
+@api_router.get("/jobs")
+async def get_jobs(skip: int = 0, limit: int = 20, remote: Optional[bool] = None):
+    query = {}
+    if remote is not None:
+        query["remote"] = remote
+    
+    jobs = await db.jobs.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    return [Job(**j) for j in jobs]
+
+@api_router.get("/talent-search")
+async def search_talent(
+    current_user: dict = Depends(get_current_user),
+    rank: Optional[str] = None,
+    skills: Optional[str] = None,
+    location: Optional[str] = None,
+    min_pc: Optional[int] = None
+):
+    if not current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Apenas empresas podem buscar talentos")
+    
+    query = {}
+    if rank:
+        query["rank"] = rank
+    if skills:
+        skill_list = [s.strip() for s in skills.split(",")]
+        query["skills"] = {"$in": skill_list}
+    if location:
+        query["location"] = {"$regex": location, "$options": "i"}
+    if min_pc:
+        query["pc_points"] = {"$gte": min_pc}
+    
+    users = await db.users.find(query).sort("pc_points", -1).limit(50).to_list(50)
+    
+    # Return public profile data only
+    return [{
+        "id": user["id"],
+        "username": user["username"],
+        "rank": user["rank"],
+        "pc_points": user["pc_points"],
+        "location": user["location"],
+        "skills": user.get("skills", []),
+        "bio": user["bio"],
+        "achievements": user.get("achievements", [])
+    } for user in users]
 
 # Voting Routes
 @api_router.post("/vote")
 async def vote(vote_data: VoteRequest, current_user: dict = Depends(get_current_user)):
-    # Check if user already voted
     existing_vote = await db.votes.find_one({
         "user_id": current_user["id"],
         "target_id": vote_data.target_id,
@@ -349,22 +828,18 @@ async def vote(vote_data: VoteRequest, current_user: dict = Depends(get_current_
     })
     
     if existing_vote:
-        # Remove existing vote
         await db.votes.delete_one({"id": existing_vote["id"]})
         
-        # Update vote counts
         field = "upvotes" if existing_vote["vote_type"] == "upvote" else "downvotes"
-        collection = db.questions if vote_data.target_type == "question" else db.answers
+        collection = db.questions if vote_data.target_type == "question" else db.articles if vote_data.target_type == "article" else db.answers
         await collection.update_one(
             {"id": vote_data.target_id},
             {"$inc": {field: -1}}
         )
         
-        # If same vote type, just remove (toggle off)
         if existing_vote["vote_type"] == vote_data.vote_type:
             return {"message": "Voto removido"}
     
-    # Add new vote
     vote = Vote(
         user_id=current_user["id"],
         target_id=vote_data.target_id,
@@ -374,17 +849,16 @@ async def vote(vote_data: VoteRequest, current_user: dict = Depends(get_current_
     
     await db.votes.insert_one(vote.dict())
     
-    # Update vote counts
     field = "upvotes" if vote_data.vote_type == "upvote" else "downvotes"
-    collection = db.questions if vote_data.target_type == "question" else db.answers
+    collection = db.questions if vote_data.target_type == "question" else db.articles if vote_data.target_type == "article" else db.answers
     await collection.update_one(
         {"id": vote_data.target_id},
         {"$inc": {field: 1}}
     )
     
-    # Award/deduct points
+    # Award/deduct points for content author
     target = await collection.find_one({"id": vote_data.target_id})
-    if target and target["author_id"] != current_user["id"]:  # Can't vote on own content
+    if target and target["author_id"] != current_user["id"]:
         if vote_data.vote_type == "upvote":
             await update_user_points(target["author_id"], pc_delta=2, pcon_delta=1)
         else:
@@ -418,7 +892,6 @@ async def validate_answer(answer_id: str, current_user: dict = Depends(get_curre
     if answer["is_validated"]:
         raise HTTPException(status_code=400, detail="Resposta já foi validada")
     
-    # Update answer as validated
     await db.answers.update_one(
         {"id": answer_id},
         {"$set": {
@@ -428,7 +901,6 @@ async def validate_answer(answer_id: str, current_user: dict = Depends(get_curre
         }}
     )
     
-    # Award points to answer author ONLY after validation
     await update_user_points(answer["author_id"], pc_delta=5, pcon_delta=10)
     
     return {"message": "Resposta validada com sucesso. Pontos concedidos ao autor."}
@@ -442,10 +914,8 @@ async def reject_answer(answer_id: str, current_user: dict = Depends(get_current
     if not answer:
         raise HTTPException(status_code=404, detail="Resposta não encontrada")
     
-    # Delete rejected answer
     await db.answers.delete_one({"id": answer_id})
     
-    # Update question answer count
     await db.questions.update_one(
         {"id": answer["question_id"]},
         {"$inc": {"answers_count": -1}}
@@ -453,17 +923,26 @@ async def reject_answer(answer_id: str, current_user: dict = Depends(get_current
     
     return {"message": "Resposta rejeitada e removida"}
 
-@api_router.post("/admin/users/{user_id}/make-admin")
-async def make_user_admin(user_id: str, current_user: dict = Depends(get_current_user)):
+@api_router.get("/admin/stats")
+async def get_admin_stats(current_user: dict = Depends(get_current_user)):
     if not current_user.get("is_admin", False):
         raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
     
-    await db.users.update_one(
-        {"id": user_id},
-        {"$set": {"is_admin": True}}
-    )
+    total_users = await db.users.count_documents({})
+    total_companies = await db.companies.count_documents({})
+    total_questions = await db.questions.count_documents({})
+    total_answers = await db.answers.count_documents({})
+    pending_answers = await db.answers.count_documents({"is_validated": False})
+    total_articles = await db.articles.count_documents({"published": True})
     
-    return {"message": "Usuário promovido a administrador"}
+    return {
+        "total_users": total_users,
+        "total_companies": total_companies,
+        "total_questions": total_questions,
+        "total_answers": total_answers,
+        "pending_answers": pending_answers,
+        "total_articles": total_articles
+    }
 
 # User Stats
 @api_router.get("/users/{user_id}/stats")
@@ -476,19 +955,83 @@ async def get_user_stats(user_id: str):
     answers_count = await db.answers.count_documents({"author_id": user_id})
     accepted_answers = await db.answers.count_documents({"author_id": user_id, "is_accepted": True})
     validated_answers = await db.answers.count_documents({"author_id": user_id, "is_validated": True})
+    articles_count = await db.articles.count_documents({"author_id": user_id, "published": True})
     
     return {
         "user": UserResponse(**user),
         "questions_count": questions_count,
         "answers_count": answers_count,
         "accepted_answers": accepted_answers,
-        "validated_answers": validated_answers
+        "validated_answers": validated_answers,
+        "articles_count": articles_count
     }
+
+# Leaderboard Routes
+@api_router.get("/leaderboard")
+async def get_leaderboard(type: str = "pc", limit: int = 50):
+    if type == "pc":
+        users = await db.users.find().sort("pc_points", -1).limit(limit).to_list(limit)
+    elif type == "pcon":
+        users = await db.users.find().sort("pcon_points", -1).limit(limit).to_list(limit)
+    else:
+        raise HTTPException(status_code=400, detail="Tipo inválido. Use 'pc' ou 'pcon'")
+    
+    return [{
+        "id": user["id"],
+        "username": user["username"],
+        "rank": user["rank"],
+        "pc_points": user["pc_points"],
+        "pcon_points": user["pcon_points"],
+        "achievements": user.get("achievements", [])
+    } for user in users]
+
+# Search Routes
+@api_router.get("/search")
+async def search(q: str, type: str = "all", limit: int = 20):
+    results = {"questions": [], "articles": [], "users": []}
+    
+    if type in ["all", "questions"]:
+        questions = await db.questions.find({
+            "$or": [
+                {"title": {"$regex": q, "$options": "i"}},
+                {"content": {"$regex": q, "$options": "i"}},
+                {"tags": {"$in": [q.lower()]}}
+            ]
+        }).limit(limit).to_list(limit)
+        results["questions"] = [Question(**q) for q in questions]
+    
+    if type in ["all", "articles"]:
+        articles = await db.articles.find({
+            "published": True,
+            "$or": [
+                {"title": {"$regex": q, "$options": "i"}},
+                {"content": {"$regex": q, "$options": "i"}},
+                {"tags": {"$in": [q.lower()]}}
+            ]
+        }).limit(limit).to_list(limit)
+        results["articles"] = [Article(**a) for a in articles]
+    
+    if type in ["all", "users"]:
+        users = await db.users.find({
+            "$or": [
+                {"username": {"$regex": q, "$options": "i"}},
+                {"skills": {"$in": [q.lower()]}}
+            ]
+        }).limit(limit).to_list(limit)
+        results["users"] = [{
+            "id": user["id"],
+            "username": user["username"],
+            "rank": user["rank"],
+            "pc_points": user["pc_points"],
+            "skills": user.get("skills", [])
+        } for user in users]
+    
+    return results
 
 # Health check
 @api_router.get("/")
 async def root():
-    return {"message": "Acode Lab API - Sistema Q&A"}
+    return {"message": "Acode Lab API - Sistema Q&A Completo"}
 
 # Include the router in the main app
 app.include_router(api_router)
