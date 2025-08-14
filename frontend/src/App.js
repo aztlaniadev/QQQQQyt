@@ -1862,8 +1862,10 @@ const AdminPanel = () => {
   const [showCreateBot, setShowCreateBot] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [showBotContentModal, setShowBotContentModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedCompany, setSelectedCompany] = useState(null);
+  const [questions, setQuestions] = useState([]);
 
   const [botForm, setBotForm] = useState({
     username: '',
@@ -1874,6 +1876,15 @@ const AdminPanel = () => {
     bio: '',
     location: '',
     skills: ''
+  });
+
+  const [botContentForm, setBotContentForm] = useState({
+    type: 'question',
+    title: '',
+    content: '',
+    code: '',
+    tags: '',
+    question_id: ''
   });
 
   const [moderationForm, setModerationForm] = useState({
