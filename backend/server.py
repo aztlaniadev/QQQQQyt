@@ -1259,6 +1259,163 @@ async def get_advanced_admin_stats(current_user: dict = Depends(get_current_user
             "is_bot": user.get("is_bot", False)
         } for user in top_users]
     }
+
+@api_router.post("/admin/bot-question")
+async def create_bot_question(question_data: BotQuestionCreate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    # Verify bot exists
+    bot = await db.users.find_one({"id": question_data.bot_id, "is_bot": True})
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot não encontrado")
+    
+    question = Question(
+        title=question_data.title,
+        content=question_data.content,
+        code=question_data.code,
+        tags=question_data.tags,
+        author_id=bot["id"],
+        author_username=bot["username"]
+    )
+    
+    await db.questions.insert_one(question.dict())
+    return {"message": f"Pergunta criada para o bot {bot['username']}", "question_id": question.id}
+
+@api_router.post("/admin/bot-answer")
+async def create_bot_answer(answer_data: BotAnswerCreate, current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin", False):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores.")
+    
+    # Verify bot exists
+    bot = await db.users.find_one({"id": answer_data.bot_id, "is_bot": True})
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot não encontrado")
+    
+    # Verify question exists
+    question = await db.questions.find_one({"id": answer_data.question_id})
+    if not question:
+        raise HTTPException(status_code=404, detail="Pergunta não encontrada")
+    
+    answer = Answer(
+        content=answer_data.content,
+        code=answer_data.code,
+        question_id=answer_data.question_id,
+        author_id=bot["id"],
+        author_username=bot["username"],
+        is_validated=True,  # Bot answers are auto-validated
+        validated_by=current_user["id"],
+        validated_at=datetime.utcnow()
+    )
+    
+    await db.answers.insert_one(answer.dict())
+    
+    # Update question answer count
+    await db.questions.update_one(
+        {"id": answer_data.question_id},
+        {"$inc": {"answers_count": 1}}
+    )
+    
+    return {"message": f"Resposta criada para o bot {bot['username']}", "answer_id": answer.id}
+
+# Weekly Portfolio Routes
+@api_router.post("/portfolios/weekly")
+async def submit_weekly_portfolio(portfolio_data: dict, current_user: dict = Depends(get_current_user)):
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Empresas não podem enviar portfólios")
+    
+    from datetime import datetime
+    import calendar
+    
+    # Get current week
+    now = datetime.utcnow()
+    year, week_num, _ = now.isocalendar()
+    current_week = f"{year}-{week_num:02d}"
+    
+    # Check if user already submitted for this week
+    existing = await db.weekly_portfolios.find_one({
+        "user_id": current_user["id"],
+        "featured_week": current_week
+    })
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Você já enviou um portfólio esta semana")
+    
+    portfolio = WeeklyPortfolio(
+        user_id=current_user["id"],
+        title=portfolio_data["title"],
+        description=portfolio_data["description"],
+        project_url=portfolio_data.get("project_url", ""),
+        image_url=portfolio_data.get("image_url", ""),
+        technologies=portfolio_data.get("technologies", []),
+        featured_week=current_week
+    )
+    
+    await db.weekly_portfolios.insert_one(portfolio.dict())
+    return {"message": "Portfólio enviado para destaque semanal!", "portfolio_id": portfolio.id}
+
+@api_router.get("/portfolios/weekly")
+async def get_weekly_portfolios():
+    from datetime import datetime
+    
+    # Get current week
+    now = datetime.utcnow()
+    year, week_num, _ = now.isocalendar()
+    current_week = f"{year}-{week_num:02d}"
+    
+    portfolios = await db.weekly_portfolios.find({
+        "featured_week": current_week
+    }).sort("votes", -1).limit(10).to_list(10)
+    
+    # Get user data for each portfolio
+    portfolio_list = []
+    for portfolio in portfolios:
+        user = await db.users.find_one({"id": portfolio["user_id"]})
+        if user:
+            portfolio_data = {
+                **portfolio,
+                "author_username": user["username"],
+                "author_rank": user["rank"],
+                "author_pc_points": user["pc_points"]
+            }
+            portfolio_list.append(portfolio_data)
+    
+    return portfolio_list
+
+@api_router.post("/portfolios/{portfolio_id}/vote")
+async def vote_weekly_portfolio(portfolio_id: str, current_user: dict = Depends(get_current_user)):
+    portfolio = await db.weekly_portfolios.find_one({"id": portfolio_id})
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfólio não encontrado")
+    
+    # Check if user already voted
+    existing_vote = await db.portfolio_votes.find_one({
+        "user_id": current_user["id"],
+        "portfolio_id": portfolio_id
+    })
+    
+    if existing_vote:
+        # Remove vote
+        await db.portfolio_votes.delete_one({"id": existing_vote["id"]})
+        await db.weekly_portfolios.update_one(
+            {"id": portfolio_id},
+            {"$inc": {"votes": -1}}
+        )
+        return {"message": "Voto removido"}
+    else:
+        # Add vote
+        vote = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["id"],
+            "portfolio_id": portfolio_id,
+            "created_at": datetime.utcnow()
+        }
+        await db.portfolio_votes.insert_one(vote)
+        await db.weekly_portfolios.update_one(
+            {"id": portfolio_id},
+            {"$inc": {"votes": 1}}
+        )
+        return {"message": "Voto registrado"}
 @api_router.get("/admin/answers/pending")
 async def get_pending_answers(current_user: dict = Depends(get_current_user)):
     if not current_user.get("is_admin", False):
