@@ -618,7 +618,7 @@ const AnswerCard = ({ answer, questionAuthorId, onAccepted, onUserUpdate }) => {
   };
 
   return (
-    <Card className={`bg-gray-900 border-copper/20 ${isAccepted ? 'border-green-500/50 bg-green-900/10' : ''}`}>
+    <Card className={`bg-gray-900 border-copper/20 ${isAccepted ? 'border-green-500/50 bg-green-900/10' : ''} ${!answer.is_validated ? 'border-yellow-500/50 bg-yellow-900/10' : ''}`}>
       <CardContent className="p-6">
         <div className="flex space-x-4">
           {/* Vote controls */}
@@ -654,7 +654,7 @@ const AnswerCard = ({ answer, questionAuthorId, onAccepted, onUserUpdate }) => {
             </Button>
             
             {/* Accept answer button */}
-            {user && user.id === questionAuthorId && !isAccepted && (
+            {user && user.id === questionAuthorId && !isAccepted && answer.is_validated && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -675,15 +675,36 @@ const AnswerCard = ({ answer, questionAuthorId, onAccepted, onUserUpdate }) => {
 
           {/* Answer content */}
           <div className="flex-1">
-            {isAccepted && (
-              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 mb-3">
-                ✓ Resposta Aceita
-              </Badge>
-            )}
+            <div className="flex gap-2 mb-3">
+              {isAccepted && (
+                <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                  ✓ Resposta Aceita
+                </Badge>
+              )}
+              {!answer.is_validated && (
+                <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                  ⏳ Aguardando Validação
+                </Badge>
+              )}
+              {answer.is_validated && !isAccepted && (
+                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                  ✓ Validada
+                </Badge>
+              )}
+            </div>
             
             <div className="text-gray-300 mb-4 whitespace-pre-wrap">
               {answer.content}
             </div>
+            
+            {!answer.is_validated && (
+              <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-3 mb-4">
+                <p className="text-yellow-400 text-sm">
+                  <strong>Nota:</strong> Esta resposta ainda não foi validada por um administrador. 
+                  O autor receberá pontos apenas após a validação.
+                </p>
+              </div>
+            )}
 
             {/* Author info */}
             <div className="flex items-center justify-between text-sm text-gray-400">
