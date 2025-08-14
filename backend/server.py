@@ -272,6 +272,34 @@ class JobCreate(BaseModel):
     remote: bool = False
     tags: List[str] = []
 
+# New Admin Models
+class BotUserCreate(BaseModel):
+    username: str
+    email: str
+    pc_points: int = 100
+    pcon_points: int = 50
+    rank: UserRank = UserRank.COLABORADOR
+    bio: str = ""
+    location: str = ""
+    skills: List[str] = []
+
+class UserModeration(BaseModel):
+    user_id: str
+    action: str  # ban, unban, mute, unmute, silence, unsilence
+    reason: str = ""
+    expires: Optional[datetime] = None
+
+class PointsUpdate(BaseModel):
+    user_id: str
+    pc_points: Optional[int] = None
+    pcon_points: Optional[int] = None
+    
+class CompanyModeration(BaseModel):
+    company_id: str
+    action: str  # ban, unban
+    reason: str = ""
+    expires: Optional[datetime] = None
+
 class StoreItem(BaseModel):
     id: str
     name: str
