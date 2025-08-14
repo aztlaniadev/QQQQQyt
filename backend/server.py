@@ -464,10 +464,25 @@ async def make_user_admin(user_id: str, current_user: dict = Depends(get_current
     
     return {"message": "Usuário promovido a administrador"}
 
-# Health check
-@api_router.get("/")
-async def root():
-    return {"message": "Acode Lab API - Sistema Q&A"}
+# User Stats
+@api_router.get("/users/{user_id}/stats")
+async def get_user_stats(user_id: str):
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    questions_count = await db.questions.count_documents({"author_id": user_id})
+    answers_count = await db.answers.count_documents({"author_id": user_id})
+    accepted_answers = await db.answers.count_documents({"author_id": user_id, "is_accepted": True})
+    validated_answers = await db.answers.count_documents({"author_id": user_id, "is_validated": True})
+    
+    return {
+        "user": UserResponse(**user),
+        "questions_count": questions_count,
+        "answers_count": answers_count,
+        "accepted_answers": accepted_answers,
+        "validated_answers": validated_answers
+    }
 
 # Include the router in the main app
 app.include_router(api_router)
