@@ -2217,13 +2217,15 @@ const AdminPanel = () => {
           <TabsContent value="users" className="mt-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-white">Gerenciar Usuários</h2>
-              <Button 
-                onClick={() => setShowCreateBot(true)}
-                className="bg-copper hover:bg-copper/90 text-black"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Bot
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => setShowCreateBot(true)}
+                  className="bg-copper hover:bg-copper/90 text-black"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Bot
+                </Button>
+              </div>
             </div>
 
             {loading ? (
@@ -2268,6 +2270,19 @@ const AdminPanel = () => {
                             <Edit className="h-4 w-4 mr-2" />
                             Gerenciar
                           </Button>
+                          {user.is_bot && (
+                            <Button 
+                              size="sm" 
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setBotContentModal(true);
+                              }}
+                            >
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Publicar
+                            </Button>
+                          )}
                           <Button 
                             size="sm" 
                             variant="destructive"
