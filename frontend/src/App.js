@@ -3045,13 +3045,15 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/registro" element={<Register />} />
               <Route path="/registro-empresa" element={<CompanyRegister />} />
-              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/perguntas" element={<QuestionsList />} />
+              <Route path="/perguntas/:id" element={<QuestionDetail />} />
               <Route path="/artigos" element={<ArticlesList />} />
               <Route path="/connect" element={<Connect />} />
               <Route path="/loja" element={<Store />} />
               <Route path="/vagas" element={<Jobs />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/perfil" element={<ProfileSettings />} />
             </Routes>
           </AuthProvider>
         </BrowserRouter>
