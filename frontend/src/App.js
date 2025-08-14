@@ -2805,20 +2805,94 @@ const QuestionDetail = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const [question, setQuestion] = useState(null);
+  const [answers, setAnswers] = useState([]);
+  const [newAnswer, setNewAnswer] = useState({ content: '', code: '' });
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchQuestion();
+    fetchAnswers();
   }, [id]);
 
   const fetchQuestion = async () => {
     try {
       const response = await axios.get(`${API}/questions/${id}`);
       setQuestion(response.data);
+      
+      // Increment view count
+      await axios.post(`${API}/questions/${id}/view`);
     } catch (error) {
       console.error('Erro ao buscar pergunta:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAnswers = async () => {
+    try {
+      const response = await axios.get(`${API}/questions/${id}/answers`);
+      setAnswers(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar respostas:', error);
+    }
+  };
+
+  const handleSubmitAnswer = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert('Faça login para responder');
+      return;
+    }
+    
+    setSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/questions/${id}/answers`, newAnswer, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setNewAnswer({ content: '', code: '' });
+      fetchAnswers();
+      alert('Resposta enviada! Aguarde a validação do administrador.');
+    } catch (error) {
+      alert('Erro ao enviar resposta: ' + error.response?.data?.detail);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVoteQuestion = async (type) => {
+    if (!user) {
+      alert('Faça login para votar');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/questions/${id}/vote`, { vote_type: type }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchQuestion();
+    } catch (error) {
+      console.error('Erro ao votar:', error);
+    }
+  };
+
+  const handleVoteAnswer = async (answerId, type) => {
+    if (!user) {
+      alert('Faça login para votar');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/answers/${answerId}/vote`, { vote_type: type }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchAnswers();
+    } catch (error) {
+      console.error('Erro ao votar:', error);
     }
   };
 
@@ -2848,23 +2922,181 @@ const QuestionDetail = () => {
   return (
     <div className="min-h-screen bg-black">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <Card className="bg-gray-900 border-copper/20">
+        {/* Breadcrumb */}
+        <div className="mb-6">
+          <Link to="/perguntas" className="text-copper hover:underline">
+            ← Voltar às Perguntas
+          </Link>
+        </div>
+
+        {/* Question Card */}
+        <Card className="bg-gray-900 border-copper/20 mb-6">
           <CardContent className="p-6">
-            <h1 className="text-2xl font-bold text-white mb-4">{question.title}</h1>
-            <p className="text-gray-300 mb-4">{question.content}</p>
-            {question.code && (
-              <div className="bg-gray-800 p-4 rounded-lg mb-4">
-                <pre className="text-gray-100 font-mono text-sm overflow-x-auto">
-                  <code>{question.code}</code>
-                </pre>
+            <div className="flex items-start gap-4">
+              {/* Vote buttons */}
+              <div className="flex flex-col items-center gap-2">
+                <button 
+                  onClick={() => handleVoteQuestion('up')}
+                  className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+                >
+                  <ArrowUp className="h-6 w-6 text-gray-400 hover:text-green-400" />
+                </button>
+                <span className="text-white font-bold text-lg">{question.upvotes - question.downvotes}</span>
+                <button 
+                  onClick={() => handleVoteQuestion('down')}
+                  className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+                >
+                  <ArrowDown className="h-6 w-6 text-gray-400 hover:text-red-400" />
+                </button>
               </div>
-            )}
-            <div className="flex items-center gap-4 text-sm text-gray-400">
-              <span>Por {question.author_username}</span>
-              <span>{new Date(question.created_at).toLocaleDateString('pt-BR')}</span>
+
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold text-white mb-4">{question.title}</h1>
+                <p className="text-gray-300 mb-4 whitespace-pre-wrap">{question.content}</p>
+                
+                {question.code && (
+                  <div className="bg-gray-800 p-4 rounded-lg mb-4">
+                    <pre className="text-gray-100 font-mono text-sm overflow-x-auto">
+                      <code>{question.code}</code>
+                    </pre>
+                  </div>
+                )}
+                
+                {question.tags && question.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {question.tags.map(tag => (
+                      <Badge key={tag} variant="secondary" className="bg-copper/20 text-copper">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-sm text-gray-400">
+                    <span>Por {question.author_username}</span>
+                    <span>{new Date(question.created_at).toLocaleDateString('pt-BR')}</span>
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      <span>{question.views} visualizações</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Answers Section */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-white mb-4">
+            {answers.length} {answers.length === 1 ? 'Resposta' : 'Respostas'}
+          </h2>
+          
+          <div className="space-y-4">
+            {answers.map(answer => (
+              <Card key={answer.id} className="bg-gray-900 border-gray-700">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    {/* Vote buttons for answers */}
+                    <div className="flex flex-col items-center gap-2">
+                      <button 
+                        onClick={() => handleVoteAnswer(answer.id, 'up')}
+                        className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+                      >
+                        <ArrowUp className="h-5 w-5 text-gray-400 hover:text-green-400" />
+                      </button>
+                      <span className="text-white font-bold">{answer.upvotes - answer.downvotes}</span>
+                      <button 
+                        onClick={() => handleVoteAnswer(answer.id, 'down')}
+                        className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+                      >
+                        <ArrowDown className="h-5 w-5 text-gray-400 hover:text-red-400" />
+                      </button>
+                      {answer.is_validated && (
+                        <Check className="h-5 w-5 text-green-400" title="Resposta validada" />
+                      )}
+                    </div>
+
+                    <div className="flex-1">
+                      <p className="text-gray-300 mb-4 whitespace-pre-wrap">{answer.content}</p>
+                      
+                      {answer.code && (
+                        <div className="bg-gray-800 p-4 rounded-lg mb-4">
+                          <pre className="text-gray-100 font-mono text-sm overflow-x-auto">
+                            <code>{answer.code}</code>
+                          </pre>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <span>Por {answer.author_username}</span>
+                        <span>{new Date(answer.created_at).toLocaleDateString('pt-BR')}</span>
+                        {answer.is_validated && (
+                          <Badge className="bg-green-500/20 text-green-400">Validada</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Answer Form */}
+        {user && !user.is_company && (
+          <Card className="bg-gray-900 border-copper/20">
+            <CardHeader>
+              <CardTitle className="text-white">Sua Resposta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmitAnswer} className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Resposta</Label>
+                  <Textarea
+                    value={newAnswer.content}
+                    onChange={(e) => setNewAnswer(prev => ({...prev, content: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    rows={6}
+                    placeholder="Escreva sua resposta aqui..."
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Código (opcional)</Label>
+                  <Textarea
+                    value={newAnswer.code}
+                    onChange={(e) => setNewAnswer(prev => ({...prev, code: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white font-mono"
+                    rows={6}
+                    placeholder="// Cole seu código aqui"
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="bg-copper hover:bg-copper/90 text-black"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Enviando...' : 'Enviar Resposta'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {!user && (
+          <Card className="bg-gray-900 border-copper/20">
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-400 mb-4">Faça login para responder esta pergunta</p>
+              <Link to="/login">
+                <Button className="bg-copper hover:bg-copper/90 text-black">
+                  Fazer Login
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
