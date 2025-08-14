@@ -759,6 +759,501 @@ class AcodeLabAPITester:
             return True
         return False
 
+    # ===== ADVANCED ADMIN FUNCTIONALITY TESTS =====
+    
+    def test_admin_get_users(self):
+        """Test admin can get all users with pagination"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        success, response = self.run_test(
+            "Admin Get All Users",
+            "GET",
+            "admin/users?skip=0&limit=10",
+            200
+        )
+        
+        if success and isinstance(response, dict):
+            users = response.get('users', [])
+            total = response.get('total', 0)
+            page = response.get('page', 0)
+            total_pages = response.get('total_pages', 0)
+            
+            self.log(f"   Total users: {total}")
+            self.log(f"   Users in page: {len(users)}")
+            self.log(f"   Current page: {page}")
+            self.log(f"   Total pages: {total_pages}")
+            
+            if len(users) > 0:
+                self.log(f"   First user: {users[0].get('username', 'N/A')} ({users[0].get('email', 'N/A')})")
+            
+            return True
+        return False
+
+    def test_admin_get_companies(self):
+        """Test admin can get all companies"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        success, response = self.run_test(
+            "Admin Get All Companies",
+            "GET",
+            "admin/companies?skip=0&limit=10",
+            200
+        )
+        
+        if success and isinstance(response, dict):
+            companies = response.get('companies', [])
+            total = response.get('total', 0)
+            page = response.get('page', 0)
+            total_pages = response.get('total_pages', 0)
+            
+            self.log(f"   Total companies: {total}")
+            self.log(f"   Companies in page: {len(companies)}")
+            self.log(f"   Current page: {page}")
+            self.log(f"   Total pages: {total_pages}")
+            
+            if len(companies) > 0:
+                self.log(f"   First company: {companies[0].get('name', 'N/A')} ({companies[0].get('email', 'N/A')})")
+            
+            return True
+        return False
+
+    def test_admin_get_advanced_stats(self):
+        """Test admin can get advanced statistics"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        success, response = self.run_test(
+            "Admin Get Advanced Stats",
+            "GET",
+            "admin/advanced-stats",
+            200
+        )
+        
+        if success and isinstance(response, dict):
+            basic_stats = response.get('basic_stats', {})
+            moderation_stats = response.get('moderation_stats', {})
+            activity_stats = response.get('activity_stats', {})
+            top_users = response.get('top_users', [])
+            
+            self.log("   Basic Stats:")
+            self.log(f"     Total users: {basic_stats.get('total_users', 0)}")
+            self.log(f"     Total companies: {basic_stats.get('total_companies', 0)}")
+            self.log(f"     Total questions: {basic_stats.get('total_questions', 0)}")
+            self.log(f"     Total answers: {basic_stats.get('total_answers', 0)}")
+            self.log(f"     Pending answers: {basic_stats.get('pending_answers', 0)}")
+            self.log(f"     Total articles: {basic_stats.get('total_articles', 0)}")
+            
+            self.log("   Moderation Stats:")
+            self.log(f"     Banned users: {moderation_stats.get('banned_users', 0)}")
+            self.log(f"     Muted users: {moderation_stats.get('muted_users', 0)}")
+            self.log(f"     Silenced users: {moderation_stats.get('silenced_users', 0)}")
+            self.log(f"     Bot users: {moderation_stats.get('bot_users', 0)}")
+            self.log(f"     Banned companies: {moderation_stats.get('banned_companies', 0)}")
+            
+            self.log("   Activity Stats:")
+            self.log(f"     Active today: {activity_stats.get('active_today', 0)}")
+            
+            self.log(f"   Top users count: {len(top_users)}")
+            
+            return True
+        return False
+
+    def test_admin_create_bot(self):
+        """Test admin can create bot users"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        import time
+        timestamp = int(time.time())
+        
+        bot_data = {
+            "username": f"bot_engajamento_{timestamp}",
+            "email": f"bot_{timestamp}@acodelab.com",
+            "pc_points": 250,
+            "pcon_points": 150,
+            "rank": "Especialista",
+            "bio": "Bot criado para aumentar o engajamento da plataforma",
+            "location": "São Paulo, Brasil",
+            "skills": ["python", "javascript", "react", "fastapi"]
+        }
+        
+        success, response = self.run_test(
+            "Admin Create Bot User",
+            "POST",
+            "admin/create-bot",
+            200,
+            data=bot_data
+        )
+        
+        if success and 'bot_id' in response:
+            self.test_data['created_bot_id'] = response['bot_id']
+            self.log(f"   Bot created with ID: {response['bot_id']}")
+            self.log(f"   Message: {response.get('message', 'N/A')}")
+            return True
+        return False
+
+    def test_admin_moderate_user_ban(self):
+        """Test admin can ban users"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        # Use the normal user ID for moderation test
+        user_id = self.test_data.get('normal_user_id')
+        if not user_id:
+            self.log("❌ No normal user ID available for moderation test", "ERROR")
+            return False
+        
+        from datetime import datetime, timedelta
+        ban_expires = datetime.utcnow() + timedelta(days=7)
+        
+        moderation_data = {
+            "user_id": user_id,
+            "action": "ban",
+            "reason": "Teste de moderação - comportamento inadequado",
+            "expires": ban_expires.isoformat()
+        }
+        
+        success, response = self.run_test(
+            "Admin Ban User",
+            "POST",
+            "admin/moderate-user",
+            200,
+            data=moderation_data
+        )
+        
+        if success:
+            self.log(f"   Message: {response.get('message', 'N/A')}")
+            return True
+        return False
+
+    def test_admin_moderate_user_unban(self):
+        """Test admin can unban users"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        # Use the normal user ID for moderation test
+        user_id = self.test_data.get('normal_user_id')
+        if not user_id:
+            self.log("❌ No normal user ID available for moderation test", "ERROR")
+            return False
+        
+        moderation_data = {
+            "user_id": user_id,
+            "action": "unban",
+            "reason": "Teste concluído - removendo ban"
+        }
+        
+        success, response = self.run_test(
+            "Admin Unban User",
+            "POST",
+            "admin/moderate-user",
+            200,
+            data=moderation_data
+        )
+        
+        if success:
+            self.log(f"   Message: {response.get('message', 'N/A')}")
+            return True
+        return False
+
+    def test_admin_moderate_user_mute(self):
+        """Test admin can mute users"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        # Use the normal user ID for moderation test
+        user_id = self.test_data.get('normal_user_id')
+        if not user_id:
+            self.log("❌ No normal user ID available for moderation test", "ERROR")
+            return False
+        
+        from datetime import datetime, timedelta
+        mute_expires = datetime.utcnow() + timedelta(hours=24)
+        
+        moderation_data = {
+            "user_id": user_id,
+            "action": "mute",
+            "reason": "Teste de moderação - spam em comentários",
+            "expires": mute_expires.isoformat()
+        }
+        
+        success, response = self.run_test(
+            "Admin Mute User",
+            "POST",
+            "admin/moderate-user",
+            200,
+            data=moderation_data
+        )
+        
+        if success:
+            self.log(f"   Message: {response.get('message', 'N/A')}")
+            return True
+        return False
+
+    def test_admin_moderate_user_silence(self):
+        """Test admin can silence users"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        # Use the normal user ID for moderation test
+        user_id = self.test_data.get('normal_user_id')
+        if not user_id:
+            self.log("❌ No normal user ID available for moderation test", "ERROR")
+            return False
+        
+        from datetime import datetime, timedelta
+        silence_expires = datetime.utcnow() + timedelta(hours=12)
+        
+        moderation_data = {
+            "user_id": user_id,
+            "action": "silence",
+            "reason": "Teste de moderação - linguagem inadequada",
+            "expires": silence_expires.isoformat()
+        }
+        
+        success, response = self.run_test(
+            "Admin Silence User",
+            "POST",
+            "admin/moderate-user",
+            200,
+            data=moderation_data
+        )
+        
+        if success:
+            self.log(f"   Message: {response.get('message', 'N/A')}")
+            return True
+        return False
+
+    def test_admin_update_user_points(self):
+        """Test admin can update user points"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        # Use the normal user ID for points update test
+        user_id = self.test_data.get('normal_user_id')
+        if not user_id:
+            self.log("❌ No normal user ID available for points update test", "ERROR")
+            return False
+        
+        points_data = {
+            "user_id": user_id,
+            "pc_points": 500,
+            "pcon_points": 300
+        }
+        
+        success, response = self.run_test(
+            "Admin Update User Points",
+            "POST",
+            "admin/update-points",
+            200,
+            data=points_data
+        )
+        
+        if success:
+            self.log(f"   Message: {response.get('message', 'N/A')}")
+            return True
+        return False
+
+    def test_normal_user_cannot_access_admin_endpoints(self):
+        """Test that normal user cannot access any admin endpoints"""
+        # Switch to normal user token
+        if self.test_data.get('normal_user_token'):
+            self.token = self.test_data['normal_user_token']
+        
+        admin_endpoints = [
+            ("admin/users", "GET"),
+            ("admin/companies", "GET"),
+            ("admin/advanced-stats", "GET"),
+            ("admin/create-bot", "POST"),
+            ("admin/moderate-user", "POST"),
+            ("admin/update-points", "POST")
+        ]
+        
+        all_blocked = True
+        
+        for endpoint, method in admin_endpoints:
+            test_data = {"test": "data"} if method == "POST" else None
+            
+            success, response = self.run_test(
+                f"Normal User Access {endpoint} (Should Fail)",
+                method,
+                endpoint,
+                403,  # Should be forbidden
+                data=test_data
+            )
+            
+            if not success:
+                all_blocked = False
+                self.log(f"   ❌ Endpoint {endpoint} not properly protected")
+            else:
+                self.log(f"   ✅ Endpoint {endpoint} correctly blocked")
+        
+        return all_blocked
+
+    def test_admin_create_test_company(self):
+        """Create a test company for moderation testing"""
+        # Create a test company first
+        import time
+        timestamp = int(time.time())
+        
+        company_data = {
+            "name": f"Empresa Teste {timestamp}",
+            "email": f"empresa_{timestamp}@teste.com",
+            "password": "EmpresaTeste123!",
+            "description": "Empresa criada para testes de moderação",
+            "website": "https://empresateste.com",
+            "location": "Rio de Janeiro, Brasil",
+            "size": "50-100"
+        }
+        
+        # Temporarily remove auth token to register company
+        temp_token = self.token
+        self.token = None
+        
+        success, response = self.run_test(
+            "Create Test Company",
+            "POST",
+            "auth/register-company",
+            200,
+            data=company_data
+        )
+        
+        # Restore admin token
+        self.token = temp_token
+        
+        if success and 'company' in response:
+            self.test_data['test_company_id'] = response['company']['id']
+            self.log(f"   Test company created with ID: {response['company']['id']}")
+            return True
+        return False
+
+    def test_admin_moderate_company_ban(self):
+        """Test admin can ban companies"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        # Create test company first if not exists
+        if not self.test_data.get('test_company_id'):
+            if not self.test_admin_create_test_company():
+                return False
+        
+        company_id = self.test_data.get('test_company_id')
+        if not company_id:
+            self.log("❌ No test company ID available for moderation test", "ERROR")
+            return False
+        
+        from datetime import datetime, timedelta
+        ban_expires = datetime.utcnow() + timedelta(days=30)
+        
+        moderation_data = {
+            "company_id": company_id,
+            "action": "ban",
+            "reason": "Teste de moderação - violação dos termos de uso",
+            "expires": ban_expires.isoformat()
+        }
+        
+        success, response = self.run_test(
+            "Admin Ban Company",
+            "POST",
+            "admin/moderate-company",
+            200,
+            data=moderation_data
+        )
+        
+        if success:
+            self.log(f"   Message: {response.get('message', 'N/A')}")
+            return True
+        return False
+
+    def test_admin_moderate_company_unban(self):
+        """Test admin can unban companies"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        company_id = self.test_data.get('test_company_id')
+        if not company_id:
+            self.log("❌ No test company ID available for moderation test", "ERROR")
+            return False
+        
+        moderation_data = {
+            "company_id": company_id,
+            "action": "unban",
+            "reason": "Teste concluído - removendo ban da empresa"
+        }
+        
+        success, response = self.run_test(
+            "Admin Unban Company",
+            "POST",
+            "admin/moderate-company",
+            200,
+            data=moderation_data
+        )
+        
+        if success:
+            self.log(f"   Message: {response.get('message', 'N/A')}")
+            return True
+        return False
+
+    def test_admin_delete_user(self):
+        """Test admin can permanently delete users"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        # Use the created bot for deletion test (safer than deleting real user)
+        bot_id = self.test_data.get('created_bot_id')
+        if not bot_id:
+            self.log("❌ No bot ID available for deletion test", "ERROR")
+            return False
+        
+        success, response = self.run_test(
+            "Admin Delete User (Bot)",
+            "DELETE",
+            f"admin/users/{bot_id}",
+            200
+        )
+        
+        if success:
+            self.log(f"   Message: {response.get('message', 'N/A')}")
+            return True
+        return False
+
+    def test_admin_delete_company(self):
+        """Test admin can permanently delete companies"""
+        # Switch to admin token
+        if self.test_data.get('admin_token'):
+            self.token = self.test_data['admin_token']
+        
+        company_id = self.test_data.get('test_company_id')
+        if not company_id:
+            self.log("❌ No test company ID available for deletion test", "ERROR")
+            return False
+        
+        success, response = self.run_test(
+            "Admin Delete Company",
+            "DELETE",
+            f"admin/companies/{company_id}",
+            200
+        )
+        
+        if success:
+            self.log(f"   Message: {response.get('message', 'N/A')}")
+            return True
+        return False
+
     def run_authentication_test_suite(self):
         """Run focused authentication tests for the specific user credentials"""
         self.log("🚀 Starting Authentication Test Suite for Test Users")
