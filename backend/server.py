@@ -91,7 +91,11 @@ class Company(BaseModel):
     size: str = ""
     subscription_plan: SubscriptionPlan = SubscriptionPlan.BASIC
     subscription_expires: Optional[datetime] = None
+    is_banned: bool = False
+    ban_reason: str = ""
+    ban_expires: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_active: datetime = Field(default_factory=datetime.utcnow)
 
 class UserCreate(BaseModel):
     username: str
