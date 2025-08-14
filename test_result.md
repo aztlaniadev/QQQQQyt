@@ -101,3 +101,48 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Criar dois usuários de teste (um admin e um normal) para facilitar o teste do sistema Acode Lab"
+
+backend:
+  - task: "Criar usuários de teste no MongoDB"
+    implemented: true
+    working: true
+    file: "create_test_users.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Script criado e executado com sucesso. Dois usuários adicionados: admin@teste.com (admin) e usuario@teste.com (usuário normal)"
+
+  - task: "Testar login com novos usuários"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Precisa testar se o login funciona corretamente com os novos usuários criados"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Testar login com novos usuários"
+    - "Verificar permissões de admin"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+      message: "Criei dois usuários de teste: admin@teste.com/Admin123! (administrador) e usuario@teste.com/Usuario123! (usuário normal). Agora preciso testar se o login está funcionando corretamente com esses usuários."
