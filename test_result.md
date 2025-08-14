@@ -111,11 +111,14 @@ backend:
     file: "server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: true
           agent: "main"
           comment: "Implementados todos os endpoints admin avançados: criação de bots, moderação de usuários/empresas, gestão de pontos, estatísticas avançadas e controle total"
+        - working: true
+          agent: "testing"
+          comment: "✅ TODOS OS ENDPOINTS ADMIN TESTADOS COM SUCESSO: GET /api/admin/users (paginação funcionando), GET /api/admin/companies (listagem OK), GET /api/admin/advanced-stats (estatísticas completas com contadores de moderação), POST /api/admin/create-bot (criação de bots funcionando), POST /api/admin/moderate-user (ban/unban/mute/unmute/silence/unsilence funcionando), POST /api/admin/update-points (atualização de PC/PCon funcionando), POST /api/admin/moderate-company (ban/unban empresas funcionando), DELETE /api/admin/users/{id} (deleção permanente funcionando), DELETE /api/admin/companies/{id} (deleção permanente funcionando). Permissões corretas: usuários normais recebem 403 Forbidden em todos os endpoints admin. Autenticação admin funcionando perfeitamente com admin@teste.com."
 
   - task: "Atualizar modelos User e Company com campos de moderação"
     implemented: true
@@ -123,11 +126,14 @@ backend:
     file: "server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: true
           agent: "main"
           comment: "Modelos atualizados com campos: is_bot, is_banned, is_muted, is_silenced, ban_reason, ban_expires, last_active"
+        - working: true
+          agent: "testing"
+          comment: "✅ CAMPOS DE MODERAÇÃO FUNCIONANDO PERFEITAMENTE: Testado criação de bot (is_bot=true), moderação de usuários (ban/mute/silence com razões e expiração), moderação de empresas (ban/unban), estatísticas avançadas mostrando contadores corretos (muted_users: 1, silenced_users: 1, bot_users: 0 após deleção). Todos os campos sendo persistidos e atualizados corretamente no banco de dados."
 
 frontend:
   - task: "Implementar painel admin avançado com abas"
