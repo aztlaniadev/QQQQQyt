@@ -2287,7 +2287,7 @@ const AdminPanel = () => {
                               className="bg-blue-600 hover:bg-blue-700 text-white"
                               onClick={() => {
                                 setSelectedUser(user);
-                                setBotContentModal(true);
+                                setShowBotContentModal(true);
                               }}
                             >
                               <MessageSquare className="h-4 w-4 mr-2" />
