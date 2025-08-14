@@ -1174,17 +1174,28 @@ const Connect = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [users, setUsers] = useState([]);
+  const [weeklyPortfolios, setWeeklyPortfolios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [showPortfolioForm, setShowPortfolioForm] = useState(false);
   const [newPost, setNewPost] = useState({
     content: '',
     post_type: 'text',
     metadata: {}
   });
 
+  const [portfolioForm, setPortfolioForm] = useState({
+    title: '',
+    description: '',
+    project_url: '',
+    image_url: '',
+    technologies: ''
+  });
+
   useEffect(() => {
     fetchFeed();
     fetchUsers();
+    fetchWeeklyPortfolios();
   }, []);
 
   const fetchFeed = async () => {
@@ -1210,6 +1221,15 @@ const Connect = () => {
     }
   };
 
+  const fetchWeeklyPortfolios = async () => {
+    try {
+      const response = await axios.get(`${API}/portfolios/weekly`);
+      setWeeklyPortfolios(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar portfólios:', error);
+    }
+  };
+
   const handleCreatePost = async (e) => {
     e.preventDefault();
     try {
@@ -1223,6 +1243,40 @@ const Connect = () => {
       fetchFeed();
     } catch (error) {
       console.error('Erro ao criar post:', error);
+    }
+  };
+
+  const handleSubmitPortfolio = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const portfolioData = {
+        ...portfolioForm,
+        technologies: portfolioForm.technologies.split(',').map(t => t.trim()).filter(t => t)
+      };
+      
+      await axios.post(`${API}/portfolios/weekly`, portfolioData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      alert('Portfólio enviado para destaque semanal!');
+      setShowPortfolioForm(false);
+      setPortfolioForm({ title: '', description: '', project_url: '', image_url: '', technologies: '' });
+      fetchWeeklyPortfolios();
+    } catch (error) {
+      alert('Erro ao enviar portfólio: ' + error.response?.data?.detail);
+    }
+  };
+
+  const handleVotePortfolio = async (portfolioId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/portfolios/${portfolioId}/vote`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchWeeklyPortfolios();
+    } catch (error) {
+      console.error('Erro ao votar:', error);
     }
   };
 
@@ -1358,6 +1412,7 @@ const Connect = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Top Users */}
             <Card className="bg-gray-900 border-copper/20">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -1393,6 +1448,75 @@ const Connect = () => {
               </CardContent>
             </Card>
 
+            {/* Weekly Portfolios */}
+            <Card className="bg-gray-900 border-copper/20">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Star className="h-5 w-5 text-yellow-400" />
+                    Portfólios da Semana
+                  </CardTitle>
+                  {user && !user.is_company && (
+                    <Button 
+                      size="sm"
+                      onClick={() => setShowPortfolioForm(true)}
+                      className="bg-copper hover:bg-copper/90 text-black"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Enviar
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {weeklyPortfolios.slice(0, 3).map((portfolio, index) => (
+                    <div key={portfolio.id} className="border border-gray-700 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-400 font-bold text-xs">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <h4 className="text-white font-medium text-sm">{portfolio.title}</h4>
+                            <p className="text-xs text-gray-400">por {portfolio.author_username}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => handleVotePortfolio(portfolio.id)}
+                            className="flex items-center gap-1 text-yellow-400 hover:text-yellow-300 transition-colors"
+                          >
+                            <Star className="h-4 w-4" />
+                            <span className="text-sm">{portfolio.votes}</span>
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-gray-300 text-sm mb-2">{portfolio.description.substring(0, 80)}...</p>
+                      {portfolio.technologies && portfolio.technologies.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {portfolio.technologies.slice(0, 3).map(tech => (
+                            <Badge key={tech} variant="secondary" className="text-xs bg-gray-700 text-gray-300">
+                              {tech}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  
+                  {weeklyPortfolios.length === 0 && (
+                    <div className="text-center text-gray-400 py-4">
+                      <Star className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Nenhum portfólio esta semana.</p>
+                      <p className="text-xs">Seja o primeiro a enviar!</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* User Stats */}
             {user && (
               <Card className="bg-gray-900 border-copper/20">
                 <CardHeader>
@@ -1426,6 +1550,77 @@ const Connect = () => {
             )}
           </div>
         </div>
+
+        {/* Portfolio Submission Modal */}
+        {showPortfolioForm && (
+          <Dialog open={showPortfolioForm} onOpenChange={setShowPortfolioForm}>
+            <DialogContent className="bg-gray-900 border-copper/20">
+              <DialogHeader>
+                <DialogTitle className="text-white">Enviar Portfólio da Semana</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmitPortfolio} className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Título do Projeto</Label>
+                  <Input
+                    value={portfolioForm.title}
+                    onChange={(e) => setPortfolioForm(prev => ({...prev, title: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Descrição</Label>
+                  <Textarea
+                    value={portfolioForm.description}
+                    onChange={(e) => setPortfolioForm(prev => ({...prev, description: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    rows={3}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">URL do Projeto (opcional)</Label>
+                  <Input
+                    value={portfolioForm.project_url}
+                    onChange={(e) => setPortfolioForm(prev => ({...prev, project_url: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="https://github.com/user/project"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">URL da Imagem (opcional)</Label>
+                  <Input
+                    value={portfolioForm.image_url}
+                    onChange={(e) => setPortfolioForm(prev => ({...prev, image_url: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="https://exemplo.com/imagem.jpg"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Tecnologias (separadas por vírgula)</Label>
+                  <Input
+                    value={portfolioForm.technologies}
+                    onChange={(e) => setPortfolioForm(prev => ({...prev, technologies: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="React, Node.js, MongoDB"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" className="bg-copper hover:bg-copper/90 text-black">
+                    Enviar Portfólio
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowPortfolioForm(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
