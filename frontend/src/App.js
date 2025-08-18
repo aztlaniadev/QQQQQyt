@@ -1797,7 +1797,7 @@ const Connect = () => {
         tags: newPost.tags.filter(tag => tag.trim() !== '')
       };
 
-      await axios.post(`${API}/connect/posts`, postData, {
+      await axios.post(`${API}/api/connect/posts`, postData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
