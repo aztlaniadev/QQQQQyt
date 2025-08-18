@@ -844,7 +844,20 @@ async def get_featured_portfolios():
         "week_year": current_week
     }).sort("votes", -1).limit(10).to_list(10)
     
-    return portfolios
+    # Convert to serializable format
+    serializable_portfolios = []
+    for portfolio in portfolios:
+        # Remove MongoDB _id and ensure all fields are serializable
+        if "_id" in portfolio:
+            del portfolio["_id"]
+        
+        # Convert datetime to string if needed
+        if "created_at" in portfolio and hasattr(portfolio["created_at"], "isoformat"):
+            portfolio["created_at"] = portfolio["created_at"].isoformat()
+            
+        serializable_portfolios.append(portfolio)
+    
+    return serializable_portfolios
 
 @api_router.post("/connect/portfolios/submit")
 async def submit_portfolio(portfolio: PortfolioSubmissionCreate, current_user: dict = Depends(get_current_user)):
