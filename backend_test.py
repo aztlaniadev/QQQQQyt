@@ -1293,26 +1293,52 @@ class AcodeLabAPITester:
             "password": "admin123"
         }
         
-        success, response = self.run_test(
-            "Connect Admin Login",
-            "POST",
-            "auth/token",
-            200,
-            data=admin_login_data
-        )
+        # Use form data for OAuth2PasswordRequestForm
+        url = f"{self.base_url}/auth/login"
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         
-        if success and 'access_token' in response:
-            self.token = response['access_token']
-            self.test_data['connect_admin_token'] = response['access_token']
-            self.test_data['connect_admin_user'] = response['user']
-            self.user_id = response['user']['id']
+        self.tests_run += 1
+        self.log(f"🔍 Testing Connect Admin Login...")
+        self.log(f"   URL: {url}")
+        self.log(f"   Method: POST")
+        self.log(f"   Data: {admin_login_data}")
+        
+        try:
+            import requests
+            response = requests.post(url, data=admin_login_data, headers=headers, timeout=10)
             
-            self.log(f"   ✅ Admin logged in: {response['user'].get('username', response['user'].get('email'))}")
-            self.log(f"   Admin ID: {response['user']['id']}")
-            self.log(f"   PC Points: {response['user'].get('pc_points', 0)}")
-            self.log(f"   PCon Points: {response['user'].get('pcon_points', 0)}")
-            return True
-        return False
+            self.log(f"   Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                self.tests_passed += 1
+                self.log(f"✅ PASSED - Connect Admin Login")
+                response_data = response.json()
+                self.log(f"   Response: {json.dumps(response_data, indent=2, default=str)}")
+                
+                if 'access_token' in response_data:
+                    self.token = response_data['access_token']
+                    self.test_data['connect_admin_token'] = response_data['access_token']
+                    self.test_data['connect_admin_user'] = response_data['user']
+                    self.user_id = response_data['user']['id']
+                    
+                    self.log(f"   ✅ Admin logged in: {response_data['user'].get('username', response_data['user'].get('email'))}")
+                    self.log(f"   Admin ID: {response_data['user']['id']}")
+                    self.log(f"   PC Points: {response_data['user'].get('pc_points', 0)}")
+                    self.log(f"   PCon Points: {response_data['user'].get('pcon_points', 0)}")
+                    return True
+            else:
+                self.log(f"❌ FAILED - Connect Admin Login")
+                self.log(f"   Expected status: 200, got: {response.status_code}")
+                try:
+                    error_data = response.json()
+                    self.log(f"   Error response: {json.dumps(error_data, indent=2)}")
+                except:
+                    self.log(f"   Error text: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ FAILED - Connect Admin Login - Exception: {str(e)}", "ERROR")
+            return False
 
     def test_connect_get_posts_empty(self):
         """Test getting posts when feed is empty"""
