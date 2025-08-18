@@ -82,7 +82,7 @@ class AcodeLabAPITester:
         success, response = self.run_test(
             "API Health Check",
             "GET",
-            "",
+            "../health",  # Health endpoint is at root level, not under /api
             200
         )
         return success
