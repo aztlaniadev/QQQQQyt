@@ -11,6 +11,8 @@ import os
 import uuid
 from dotenv import load_dotenv
 from enum import Enum
+from bson import json_util
+import json
 
 # CONFIGURAÇÃO INICIAL
 load_dotenv()
@@ -684,29 +686,14 @@ async def follow_user(user_id: str, current_user: dict = Depends(get_current_use
 # CONNECT ROUTES
 @api_router.get("/connect/posts")
 async def get_connect_posts(skip: int = 0, limit: int = 20, user_id: str = None):
-    """Get posts for Connect feed"""
     query = {}
     if user_id:
         query["author_id"] = user_id
     
     posts = await db.posts.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     
-    # Convert to serializable format
-    serializable_posts = []
-    for post in posts:
-        # Remove MongoDB _id and ensure all fields are serializable
-        if "_id" in post:
-            del post["_id"]
-        
-        # Convert datetime to string if needed
-        if "created_at" in post and hasattr(post["created_at"], "isoformat"):
-            post["created_at"] = post["created_at"].isoformat()
-        if "updated_at" in post and hasattr(post["updated_at"], "isoformat"):
-            post["updated_at"] = post["updated_at"].isoformat()
-            
-        serializable_posts.append(post)
-    
-    return serializable_posts
+    # Converter para JSON serializável
+    return json.loads(json_util.dumps(posts))
 
 @api_router.post("/connect/posts")
 async def create_post(post: PostCreate, current_user: dict = Depends(get_current_user)):
@@ -769,25 +756,10 @@ async def toggle_like_post(post_id: str, current_user: dict = Depends(get_curren
 
 @api_router.get("/connect/posts/{post_id}/comments")
 async def get_post_comments(post_id: str):
-    """Get comments for a post"""
     comments = await db.comments.find({"post_id": post_id}).sort("created_at", 1).to_list(100)
     
-    # Convert to serializable format
-    serializable_comments = []
-    for comment in comments:
-        # Remove MongoDB _id and ensure all fields are serializable
-        if "_id" in comment:
-            del comment["_id"]
-        
-        # Convert datetime to string if needed
-        if "created_at" in comment and hasattr(comment["created_at"], "isoformat"):
-            comment["created_at"] = comment["created_at"].isoformat()
-        if "updated_at" in comment and hasattr(comment["updated_at"], "isoformat"):
-            comment["updated_at"] = comment["updated_at"].isoformat()
-            
-        serializable_comments.append(comment)
-    
-    return serializable_comments
+    # Converter para JSON serializável
+    return json.loads(json_util.dumps(comments))
 
 @api_router.post("/connect/posts/{post_id}/comments")
 async def create_comment(post_id: str, comment: CommentCreate, current_user: dict = Depends(get_current_user)):
@@ -852,7 +824,6 @@ async def toggle_like_comment(comment_id: str, current_user: dict = Depends(get_
 # PORTFOLIO ROUTES
 @api_router.get("/connect/portfolios/featured")
 async def get_featured_portfolios():
-    """Get featured portfolios of the week"""
     import datetime
     current_week = datetime.datetime.now().strftime("%Y-W%U")
     
@@ -860,20 +831,8 @@ async def get_featured_portfolios():
         "week_year": current_week
     }).sort("votes", -1).limit(10).to_list(10)
     
-    # Convert to serializable format
-    serializable_portfolios = []
-    for portfolio in portfolios:
-        # Remove MongoDB _id and ensure all fields are serializable
-        if "_id" in portfolio:
-            del portfolio["_id"]
-        
-        # Convert datetime to string if needed
-        if "created_at" in portfolio and hasattr(portfolio["created_at"], "isoformat"):
-            portfolio["created_at"] = portfolio["created_at"].isoformat()
-            
-        serializable_portfolios.append(portfolio)
-    
-    return serializable_portfolios
+    # Converter para JSON serializável
+    return json.loads(json_util.dumps(portfolios))
 
 @api_router.post("/connect/portfolios/submit")
 async def submit_portfolio(portfolio: PortfolioSubmissionCreate, current_user: dict = Depends(get_current_user)):
@@ -1025,6 +984,586 @@ async def reject_answer(answer_id: str, current_user: dict = Depends(get_current
     )
     
     return {"message": "Answer rejected and removed"}
+
+# STORE ENDPOINTS
+@api_router.get("/store/items")
+async def get_store_items(
+    item_type: Optional[str] = None,
+    rarity: Optional[str] = None,
+    min_price: Optional[int] = None,
+    max_price: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 50
+):
+    """Listar itens da loja com filtros opcionais"""
+    try:
+        query = {}
+        
+        if item_type:
+            query["item_type"] = item_type
+        if rarity:
+            query["rarity"] = rarity
+        if min_price is not None:
+            query["price"] = {"$gte": min_price}
+        if max_price is not None:
+            if "price" in query:
+                query["price"]["$lte"] = max_price
+            else:
+                query["price"] = {"$lte": max_price}
+        
+        items = await db.store_items.find(query).skip(skip).limit(limit).to_list(limit)
+        
+        # Converter para JSON serializável
+        return json.loads(json_util.dumps(items))
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar itens da loja: {str(e)}"
+        )
+
+@api_router.get("/store/items/{item_id}")
+async def get_store_item(item_id: str):
+    """Obter detalhes de um item específico"""
+    try:
+        if not ObjectId.is_valid(item_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ID do item inválido"
+            )
+        
+        item = await db.store_items.find_one({"_id": ObjectId(item_id)})
+        if not item:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Item não encontrado"
+            )
+        
+        # Converter para JSON serializável
+        return json.loads(json_util.dumps(item))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar item: {str(e)}"
+        )
+
+@api_router.post("/store/items/{item_id}/purchase")
+async def purchase_item(
+    item_id: str,
+    quantity: int = 1,
+    current_user: dict = Depends(get_current_user)
+):
+    """Comprar um item da loja"""
+    try:
+        if not ObjectId.is_valid(item_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ID do item inválido"
+            )
+        
+        # Verificar se o item existe
+        item = await db.store_items.find_one({"_id": ObjectId(item_id)})
+        if not item:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Item não encontrado"
+            )
+        
+        # Verificar se o usuário tem PCons suficientes
+        total_cost = item["price"] * quantity
+        if current_user["pcon_points"] < total_cost:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="PCons insuficientes para esta compra"
+            )
+        
+        # Processar a compra
+        async with await client.start_session() as session:
+            async with session.start_transaction():
+                # Deduzir PCons do usuário
+                await db.users.update_one(
+                    {"_id": current_user["_id"]},
+                    {"$inc": {"pcon_points": -total_cost}},
+                    session=session
+                )
+                
+                # Adicionar item ao inventário
+                inventory_data = {
+                    "user_id": current_user["_id"],
+                    "item_id": ObjectId(item_id),
+                    "quantity": quantity,
+                    "acquired_at": datetime.utcnow()
+                }
+                
+                # Verificar se já existe no inventário
+                existing_inventory = await db.user_inventory.find_one({
+                    "user_id": current_user["_id"],
+                    "item_id": ObjectId(item_id)
+                })
+                
+                if existing_inventory:
+                    # Atualizar quantidade
+                    await db.user_inventory.update_one(
+                        {"_id": existing_inventory["_id"]},
+                        {"$inc": {"quantity": quantity}},
+                        session=session
+                    )
+                else:
+                    # Criar novo item no inventário
+                    await db.user_inventory.insert_one(inventory_data, session=session)
+                
+                # Registrar a compra
+                purchase_data = {
+                    "user_id": current_user["_id"],
+                    "item_id": ObjectId(item_id),
+                    "quantity": quantity,
+                    "total_cost": total_cost,
+                    "purchased_at": datetime.utcnow()
+                }
+                
+                await db.purchases.insert_one(purchase_data, session=session)
+                await session.commit_transaction()
+        
+        return {"message": "Compra realizada com sucesso"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao processar compra: {str(e)}"
+        )
+
+@api_router.get("/store/inventory")
+async def get_user_inventory(current_user: dict = Depends(get_current_user)):
+    """Obter inventário do usuário"""
+    try:
+        # Buscar itens do inventário com detalhes dos itens
+        pipeline = [
+            {"$match": {"user_id": current_user["_id"]}},
+            {
+                "$lookup": {
+                    "from": "store_items",
+                    "localField": "item_id",
+                    "foreignField": "_id",
+                    "as": "item"
+                }
+            },
+            {"$unwind": "$item"},
+            {"$sort": {"acquired_at": -1}}
+        ]
+        
+        inventory = await db.user_inventory.aggregate(pipeline).to_list(1000)
+        
+        # Converter para JSON serializável
+        return json.loads(json_util.dumps(inventory))
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar inventário: {str(e)}"
+        )
+
+@api_router.get("/store/balance")
+async def get_user_balance(current_user: dict = Depends(get_current_user)):
+    """Obter saldo de PCons do usuário"""
+    try:
+        user = await db.users.find_one({"_id": current_user["_id"]})
+        return {"pcons": user.get("pcon_points", 0)}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar saldo: {str(e)}"
+        )
+
+# JOBS ENDPOINTS
+@api_router.get("/jobs")
+async def get_jobs(
+    company_id: Optional[str] = None,
+    job_type: Optional[str] = None,
+    experience_level: Optional[str] = None,
+    location: Optional[str] = None,
+    remote_work: Optional[bool] = None,
+    skills: Optional[str] = None,
+    is_active: bool = True,
+    skip: int = 0,
+    limit: int = 20
+):
+    """Listar vagas com filtros opcionais"""
+    try:
+        query = {"is_active": is_active}
+        
+        if company_id:
+            if ObjectId.is_valid(company_id):
+                query["company_id"] = ObjectId(company_id)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="ID da empresa inválido"
+                )
+        
+        if job_type:
+            query["job_type"] = job_type
+        if experience_level:
+            query["experience_level"] = experience_level
+        if location:
+            query["location"] = {"$regex": location, "$options": "i"}
+        if remote_work is not None:
+            query["remote_work"] = remote_work
+        if skills:
+            skill_list = [skill.strip() for skill in skills.split(",")]
+            query["skills"] = {"$in": skill_list}
+        
+        # Buscar vagas com contagem de aplicações
+        pipeline = [
+            {"$match": query},
+            {
+                "$lookup": {
+                    "from": "job_applications",
+                    "localField": "_id",
+                    "foreignField": "job_id",
+                    "as": "applications"
+                }
+            },
+            {
+                "$addFields": {
+                    "applications_count": {"$size": "$applications"}
+                }
+            },
+            {"$sort": {"created_at": -1}},
+            {"$skip": skip},
+            {"$limit": limit}
+        ]
+        
+        jobs = await db.jobs.aggregate(pipeline).to_list(limit)
+        
+        # Converter para JSON serializável
+        return json.loads(json_util.dumps(jobs))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar vagas: {str(e)}"
+        )
+
+@api_router.post("/jobs")
+async def create_job(
+    job_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Criar nova vaga (apenas empresas)"""
+    try:
+        if not current_user.get("is_company"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Apenas empresas podem criar vagas"
+            )
+        
+        job_dict = job_data.copy()
+        job_dict["company_id"] = current_user["_id"]
+        job_dict["created_at"] = datetime.utcnow()
+        job_dict["updated_at"] = datetime.utcnow()
+        job_dict["is_active"] = True
+        
+        result = await db.jobs.insert_one(job_dict)
+        
+        # Buscar a vaga criada
+        created_job = await db.jobs.find_one({"_id": result.inserted_id})
+        created_job["applications_count"] = 0
+        
+        # Converter para JSON serializável
+        return json.loads(json_util.dumps(created_job))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao criar vaga: {str(e)}"
+        )
+
+@api_router.post("/jobs/{job_id}/apply")
+async def apply_to_job(
+    job_id: str,
+    application_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Candidatar-se a uma vaga"""
+    try:
+        if current_user.get("is_company"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Empresas não podem se candidatar a vagas"
+            )
+        
+        if not ObjectId.is_valid(job_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ID da vaga inválido"
+            )
+        
+        # Verificar se a vaga existe e está ativa
+        job = await db.jobs.find_one({"_id": ObjectId(job_id), "is_active": True})
+        if not job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Vaga não encontrada ou inativa"
+            )
+        
+        # Verificar se já se candidatou
+        existing_application = await db.job_applications.find_one({
+            "job_id": ObjectId(job_id),
+            "user_id": current_user["_id"]
+        })
+        if existing_application:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Você já se candidatou a esta vaga"
+            )
+        
+        # Criar candidatura
+        application_dict = application_data.copy()
+        application_dict["job_id"] = ObjectId(job_id)
+        application_dict["user_id"] = current_user["_id"]
+        application_dict["status"] = "pending"
+        application_dict["applied_at"] = datetime.utcnow()
+        application_dict["updated_at"] = datetime.utcnow()
+        
+        result = await db.job_applications.insert_one(application_dict)
+        
+        return {"message": "Candidatura enviada com sucesso"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao candidatar-se: {str(e)}"
+        )
+
+# ARTICLES ENDPOINTS
+@api_router.get("/articles")
+async def get_articles(
+    category: Optional[str] = None,
+    author_id: Optional[str] = None,
+    tags: Optional[str] = None,
+    search: Optional[str] = None,
+    is_published: bool = True,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    skip: int = 0,
+    limit: int = 20
+):
+    """Listar artigos com filtros opcionais"""
+    try:
+        query = {"is_published": is_published}
+        
+        if category:
+            query["category"] = category
+        if author_id:
+            if ObjectId.is_valid(author_id):
+                query["author_id"] = ObjectId(author_id)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="ID do autor inválido"
+                )
+        if tags:
+            tag_list = [tag.strip() for tag in tags.split(",")]
+            query["tags"] = {"$in": tag_list}
+        if search:
+            query["$or"] = [
+                {"title": {"$regex": search, "$options": "i"}},
+                {"content": {"$regex": search, "$options": "i"}},
+                {"summary": {"$regex": search, "$options": "i"}}
+            ]
+        
+        # Definir ordenação
+        sort_direction = -1 if sort_order == "desc" else 1
+        sort_field = sort_by if sort_by in ["created_at", "updated_at", "views", "upvotes"] else "created_at"
+        
+        # Buscar artigos com dados do autor
+        pipeline = [
+            {"$match": query},
+            {
+                "$lookup": {
+                    "from": "users",
+                    "localField": "author_id",
+                    "foreignField": "_id",
+                    "as": "author"
+                }
+            },
+            {"$unwind": "$author"},
+            {
+                "$addFields": {
+                    "author_username": "$author.username",
+                    "author_rank": "$author.rank"
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "article_comments",
+                    "localField": "_id",
+                    "foreignField": "article_id",
+                    "as": "comments"
+                }
+            },
+            {
+                "$addFields": {
+                    "comments_count": {"$size": "$comments"}
+                }
+            },
+            {"$sort": {sort_field: sort_direction}},
+            {"$skip": skip},
+            {"$limit": limit}
+        ]
+        
+        articles = await db.articles.aggregate(pipeline).to_list(limit)
+        
+        # Converter para JSON serializável
+        return json.loads(json_util.dumps(articles))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar artigos: {str(e)}"
+        )
+
+@api_router.post("/articles")
+async def create_article(
+    article_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Criar novo artigo"""
+    try:
+        # Verificar se o usuário tem rank suficiente para publicar
+        if article_data.get("is_published", False):
+            user_rank = current_user.get("rank", "Iniciante")
+            rank_order = ["Iniciante", "Aprendiz", "Contribuidor", "Especialista", "Mestre", "Guru"]
+            user_rank_index = rank_order.index(user_rank)
+            
+            # Iniciante e Aprendiz podem criar rascunhos, Contribuidor+ pode publicar
+            if user_rank_index < 2:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Rank Contribuidor ou superior necessário para publicar artigos"
+                )
+        
+        article_dict = article_data.copy()
+        article_dict["author_id"] = current_user["_id"]
+        article_dict["views"] = 0
+        article_dict["upvotes"] = 0
+        article_dict["downvotes"] = 0
+        article_dict["created_at"] = datetime.utcnow()
+        article_dict["updated_at"] = datetime.utcnow()
+        
+        if article_data.get("is_published", False):
+            article_dict["published_at"] = datetime.utcnow()
+        
+        result = await db.articles.insert_one(article_dict)
+        
+        # Buscar o artigo criado
+        created_article = await db.articles.find_one({"_id": result.inserted_id})
+        created_article["author_username"] = current_user["username"]
+        created_article["author_rank"] = current_user.get("rank")
+        created_article["comments_count"] = 0
+        
+        # Converter para JSON serializável
+        return json.loads(json_util.dumps(created_article))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao criar artigo: {str(e)}"
+        )
+
+@api_router.post("/articles/{article_id}/upvote")
+async def upvote_article(
+    article_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Votar positivamente em um artigo"""
+    try:
+        if not ObjectId.is_valid(article_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ID do artigo inválido"
+            )
+        
+        # Verificar se o artigo existe
+        article = await db.articles.find_one({"_id": ObjectId(article_id)})
+        if not article:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Artigo não encontrado"
+            )
+        
+        # Verificar se o usuário não está votando no próprio artigo
+        if article["author_id"] == current_user["_id"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Não é possível votar no próprio artigo"
+            )
+        
+        # Verificar se já votou
+        existing_vote = await db.article_votes.find_one({
+            "article_id": ObjectId(article_id),
+            "user_id": current_user["_id"]
+        })
+        
+        if existing_vote:
+            if existing_vote["vote_type"] == "up":
+                # Remover voto positivo
+                await db.article_votes.delete_one({"_id": existing_vote["_id"]})
+                await db.articles.update_one(
+                    {"_id": ObjectId(article_id)},
+                    {"$inc": {"upvotes": -1}}
+                )
+                return {"message": "Voto positivo removido", "action": "removed"}
+            else:
+                # Mudar de negativo para positivo
+                await db.article_votes.update_one(
+                    {"_id": existing_vote["_id"]},
+                    {"$set": {"vote_type": "up", "updated_at": datetime.utcnow()}}
+                )
+                await db.articles.update_one(
+                    {"_id": ObjectId(article_id)},
+                    {"$inc": {"upvotes": 1, "downvotes": -1}}
+                )
+                return {"message": "Voto alterado para positivo", "action": "changed"}
+        else:
+            # Criar novo voto positivo
+            vote_data = {
+                "article_id": ObjectId(article_id),
+                "user_id": current_user["_id"],
+                "vote_type": "up",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+            await db.article_votes.insert_one(vote_data)
+            await db.articles.update_one(
+                {"_id": ObjectId(article_id)},
+                {"$inc": {"upvotes": 1}}
+            )
+            return {"message": "Voto positivo registrado", "action": "added"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao votar no artigo: {str(e)}"
+        )
 
 # Include API router
 app.include_router(api_router)

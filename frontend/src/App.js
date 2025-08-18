@@ -1759,10 +1759,21 @@ const Connect = () => {
     technologies: []
   });
   const [showPortfolioSubmit, setShowPortfolioSubmit] = useState(false);
+  const [selectedPostForComment, setSelectedPostForComment] = useState(null);
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState('');
 
   useEffect(() => {
     fetchConnectData();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (showCommentModal && selectedPostForComment) {
+      fetchComments(selectedPostForComment);
+    }
+  }, [showCommentModal, selectedPostForComment]);
 
   const fetchConnectData = async () => {
     try {
@@ -1878,6 +1889,66 @@ const Connect = () => {
     }
   };
 
+  const fetchComments = async (postId) => {
+    setLoadingComments(true);
+    try {
+      const response = await axios.get(`${API}/api/connect/posts/${postId}/comments`);
+      setComments(response.data || []);
+    } catch (error) {
+      console.error('Erro ao buscar comentários:', error);
+      setComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleCreateComment = async (e) => {
+    e.preventDefault();
+    if (!user || !newComment.trim()) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API}/api/connect/posts/${selectedPostForComment}/comments`,
+        { content: newComment },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setNewComment('');
+      fetchComments(selectedPostForComment);
+      
+      // Atualizar contador de comentários
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === selectedPostForComment 
+            ? { ...post, comments_count: post.comments_count + 1 }
+            : post
+        )
+      );
+    } catch (error) {
+      alert('Erro ao criar comentário: ' + (error.response?.data?.detail || 'Erro desconhecido'));
+    }
+  };
+
+  const handleLikeComment = async (commentId) => {
+    if (!user) {
+      alert('Faça login para curtir comentários');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API}/api/connect/comments/${commentId}/like`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchComments(selectedPostForComment);
+    } catch (error) {
+      console.error('Erro ao curtir comentário:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black">
       <Navigation />
@@ -1976,10 +2047,16 @@ const Connect = () => {
                               <Heart className="h-5 w-5" />
                               <span>{post.likes}</span>
                             </button>
-                            <div className="flex items-center gap-2 text-gray-400">
+                            <button 
+                              onClick={() => {
+                                setSelectedPostForComment(post.id);
+                                setShowCommentModal(true);
+                              }}
+                              className="flex items-center gap-2 text-gray-400 hover:text-blue-400 transition-colors"
+                            >
                               <MessageSquare className="h-5 w-5" />
                               <span>{post.comments_count}</span>
-                            </div>
+                            </button>
                             <button className="flex items-center gap-2 text-gray-400 hover:text-blue-400 transition-colors">
                               <Share2 className="h-5 w-5" />
                               <span>Compartilhar</span>
@@ -2246,6 +2323,79 @@ const Connect = () => {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Comments Modal */}
+      <Dialog open={showCommentModal} onOpenChange={setShowCommentModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Comentários</DialogTitle>
+          </DialogHeader>
+          
+          {/* Lista de Comentários */}
+          <div className="space-y-4 mb-6">
+            {loadingComments ? (
+              <div className="text-center text-gray-400 py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-copper mx-auto"></div>
+              </div>
+            ) : comments.length === 0 ? (
+              <p className="text-center text-gray-400 py-4">
+                Nenhum comentário ainda. Seja o primeiro!
+              </p>
+            ) : (
+              comments.map(comment => (
+                <div key={comment.id || comment._id?.$oid} className="flex gap-3 p-3 bg-gray-800 rounded-lg">
+                  <div className="h-8 w-8 bg-copper rounded-full flex items-center justify-center flex-shrink-0">
+                    <User className="h-4 w-4 text-black" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-white text-sm">
+                        {comment.author_username}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {comment.created_at?.$date 
+                          ? new Date(comment.created_at.$date).toLocaleDateString('pt-BR')
+                          : new Date(comment.created_at).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                    <p className="text-gray-300 text-sm">{comment.content}</p>
+                    <button 
+                      onClick={() => handleLikeComment(comment.id || comment._id?.$oid)}
+                      className="flex items-center gap-1 mt-2 text-gray-400 hover:text-red-400 transition-colors text-sm"
+                    >
+                      <Heart className="h-4 w-4" />
+                      <span>{comment.likes || 0}</span>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          {/* Formulário de Novo Comentário */}
+          {user && !user.is_company ? (
+            <form onSubmit={handleCreateComment} className="flex gap-2">
+              <Input
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Escreva um comentário..."
+                className="flex-1 bg-gray-800 border-gray-700 text-white"
+                required
+              />
+              <Button 
+                type="submit"
+                className="bg-copper hover:bg-copper/90 text-black"
+              >
+                Comentar
+              </Button>
+            </form>
+          ) : (
+            <p className="text-center text-gray-400 py-2">
+              {!user ? 'Faça login para comentar' : 'Empresas não podem comentar'}
+            </p>
+          )}
         </DialogContent>
       </Dialog>
     </div>
