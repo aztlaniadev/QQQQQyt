@@ -210,13 +210,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Verificar funcionalidades do painel admin frontend"
+    - "Implementar modelos Connect (Posts, Likes, Comments)"
+    - "Criar endpoints para posts sociais"
+    - "Criar página Connect com feed de posts"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     - agent: "main"
-      message: "Implementei um sistema administrativo completo e avançado conforme solicitado. Inclui: 1) Criação de bots para engajamento 2) Gerenciamento completo de usuários com controle livre de PC/PCon 3) Sistema de moderação com ban/unban, mute/unmute, silence/unsilence 4) Gerenciamento de empresas 5) Deleção permanente de usuários/empresas 6) Estatísticas avançadas 7) Interface com tabs organizadas. O admin agora tem poder total sobre a plataforma."
-    - agent: "testing"
-      message: "🎉 TESTE COMPLETO DOS ENDPOINTS ADMIN AVANÇADOS REALIZADO COM 100% DE SUCESSO! Todos os 26 testes passaram. Funcionalidades testadas e funcionando: ✅ Autenticação admin (admin@teste.com) ✅ Listagem de usuários com paginação ✅ Listagem de empresas ✅ Estatísticas avançadas com contadores de moderação ✅ Criação de bots com dados personalizados ✅ Moderação completa de usuários (ban/unban/mute/unmute/silence/unsilence) ✅ Atualização livre de pontos PC/PCon ✅ Moderação de empresas (ban/unban) ✅ Deleção permanente de usuários e empresas ✅ Proteção de permissões (403 para usuários normais). Sistema administrativo totalmente funcional e seguro. Backend pronto para produção."
+      message: "Iniciando implementação do sistema Connect conforme plano aprovado pelo usuário. Começando com backend: modelos para Posts, Likes, Comments e endpoints para operações sociais. Depois implementarei o frontend com feed de posts e formulários."
