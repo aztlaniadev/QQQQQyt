@@ -272,6 +272,18 @@ class PostCreate(BaseModel):
     content: str
     post_type: str = "text"
     metadata: Dict[str, Any] = {}
+    image_url: Optional[str] = ""
+    tags: List[str] = []
+
+class CommentCreate(BaseModel):
+    content: str
+
+class PortfolioSubmissionCreate(BaseModel):
+    title: str
+    description: str
+    project_url: str
+    image_url: Optional[str] = ""
+    technologies: List[str] = []
 
 class Token(BaseModel):
     access_token: str
