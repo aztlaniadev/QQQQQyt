@@ -162,12 +162,47 @@ class Article(BaseModel):
 class Post(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content: str
-    post_type: str = "text"  # text, project, achievement
+    post_type: str = "text"  # text, project, achievement, portfolio
     author_id: str
     author_username: str
     likes: int = 0
     comments_count: int = 0
-    metadata: Dict[str, Any] = {}
+    metadata: Dict[str, Any] = {}  # For project details, links, etc.
+    image_url: Optional[str] = ""
+    tags: List[str] = []
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Like(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    user_username: str
+    target_id: str
+    target_type: str  # "post" or "comment"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Comment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    content: str
+    post_id: str
+    author_id: str
+    author_username: str
+    likes: int = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class PortfolioSubmission(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    user_username: str
+    title: str
+    description: str
+    project_url: str
+    image_url: Optional[str] = ""
+    technologies: List[str] = []
+    votes: int = 0
+    week_year: str  # Format: "2025-W01"
+    is_featured: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Job(BaseModel):
