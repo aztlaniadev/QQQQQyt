@@ -266,9 +266,12 @@ class ErrorBoundary extends React.Component {
           <div className="text-center text-white">
             <h1 className="text-2xl font-bold mb-4">Algo deu errado!</h1>
             <p className="text-gray-400 mb-6">Recarregue a página para tentar novamente.</p>
-            <Button onClick={() => window.location.reload()} className="bg-copper hover:bg-copper/90 text-black">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-copper hover:bg-copper/90 text-black h-10 py-2 px-4"
+            >
               Recarregar
-            </Button>
+            </button>
           </div>
         </div>
       );
