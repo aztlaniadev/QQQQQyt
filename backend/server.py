@@ -674,7 +674,23 @@ async def get_connect_posts(skip: int = 0, limit: int = 20, user_id: str = None)
         query["author_id"] = user_id
     
     posts = await db.posts.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
-    return posts
+    
+    # Convert to serializable format
+    serializable_posts = []
+    for post in posts:
+        # Remove MongoDB _id and ensure all fields are serializable
+        if "_id" in post:
+            del post["_id"]
+        
+        # Convert datetime to string if needed
+        if "created_at" in post and hasattr(post["created_at"], "isoformat"):
+            post["created_at"] = post["created_at"].isoformat()
+        if "updated_at" in post and hasattr(post["updated_at"], "isoformat"):
+            post["updated_at"] = post["updated_at"].isoformat()
+            
+        serializable_posts.append(post)
+    
+    return serializable_posts
 
 @api_router.post("/connect/posts")
 async def create_post(post: PostCreate, current_user: dict = Depends(get_current_user)):
