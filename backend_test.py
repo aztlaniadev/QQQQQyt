@@ -1289,8 +1289,8 @@ class AcodeLabAPITester:
     def test_connect_admin_login(self):
         """Test admin login for Connect tests"""
         admin_login_data = {
-            "username": "admin@teste.com",
-            "password": "admin123"
+            "username": "testadmin@teste.com",
+            "password": "TestAdmin123!"
         }
         
         # Use form data for OAuth2PasswordRequestForm
