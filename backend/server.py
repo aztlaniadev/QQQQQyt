@@ -755,7 +755,23 @@ async def toggle_like_post(post_id: str, current_user: dict = Depends(get_curren
 async def get_post_comments(post_id: str):
     """Get comments for a post"""
     comments = await db.comments.find({"post_id": post_id}).sort("created_at", 1).to_list(100)
-    return comments
+    
+    # Convert to serializable format
+    serializable_comments = []
+    for comment in comments:
+        # Remove MongoDB _id and ensure all fields are serializable
+        if "_id" in comment:
+            del comment["_id"]
+        
+        # Convert datetime to string if needed
+        if "created_at" in comment and hasattr(comment["created_at"], "isoformat"):
+            comment["created_at"] = comment["created_at"].isoformat()
+        if "updated_at" in comment and hasattr(comment["updated_at"], "isoformat"):
+            comment["updated_at"] = comment["updated_at"].isoformat()
+            
+        serializable_comments.append(comment)
+    
+    return serializable_comments
 
 @api_router.post("/connect/posts/{post_id}/comments")
 async def create_comment(post_id: str, comment: CommentCreate, current_user: dict = Depends(get_current_user)):
