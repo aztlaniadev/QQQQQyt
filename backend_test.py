@@ -1723,18 +1723,43 @@ class AcodeLabAPITester:
                 "password": user_data['password']
             }
             
-            success, login_response = self.run_test(
-                "Login Second User",
-                "POST",
-                "auth/token",
-                200,
-                data=login_data
-            )
+            # Use form data for OAuth2PasswordRequestForm
+            url = f"{self.base_url}/auth/login"
+            headers = {'Content-Type': 'application/x-www-form-urlencoded'}
             
-            if success and 'access_token' in login_response:
-                self.test_data['second_user_token'] = login_response['access_token']
-                self.log(f"   Second user logged in successfully")
-                return True
+            self.tests_run += 1
+            self.log(f"🔍 Testing Login Second User...")
+            self.log(f"   URL: {url}")
+            self.log(f"   Data: {login_data}")
+            
+            try:
+                import requests
+                response = requests.post(url, data=login_data, headers=headers, timeout=10)
+                
+                self.log(f"   Response Status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    self.tests_passed += 1
+                    self.log(f"✅ PASSED - Login Second User")
+                    login_response = response.json()
+                    
+                    if 'access_token' in login_response:
+                        self.test_data['second_user_token'] = login_response['access_token']
+                        self.log(f"   Second user logged in successfully")
+                        return True
+                else:
+                    self.log(f"❌ FAILED - Login Second User")
+                    self.log(f"   Expected status: 200, got: {response.status_code}")
+                    try:
+                        error_data = response.json()
+                        self.log(f"   Error response: {json.dumps(error_data, indent=2)}")
+                    except:
+                        self.log(f"   Error text: {response.text}")
+                    return False
+                    
+            except Exception as e:
+                self.log(f"❌ FAILED - Login Second User - Exception: {str(e)}", "ERROR")
+                return False
         
         return False
 
