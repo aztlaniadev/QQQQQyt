@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Implementar painel administrativo avançado com funcionalidades de poder total para admin: criar bots, gerenciar usuários/empresas, controle de pontos, moderação (ban/mute/silence), e todas as funcionalidades administrativas avançadas"
+user_problem_statement: "Implementar o sistema Connect - feed social com posts de usuários, sistema de curtidas, comentários, seguir usuários, e seção 'Portfólios em Destaque da Semana' para networking profissional"
 
 backend:
   - task: "Criar novos endpoints admin avançados"
