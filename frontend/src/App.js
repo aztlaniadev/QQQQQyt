@@ -182,7 +182,7 @@ const TrendingUp = ({ className }) => <span className={className}>📈</span>;
 const User = ({ className }) => <span className={className}>👤</span>;
 const Clock = ({ className }) => <span className={className}>⏰</span>;
 
-const API = import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL;
+const API = process.env.REACT_APP_BACKEND_URL;
 
 // Auth Context
 const AuthContext = createContext();
