@@ -1735,21 +1735,519 @@ const ArticlesList = () => (
   </div>
 );
 
-const Connect = () => (
-  <div className="min-h-screen bg-black">
-    <Navigation />
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Acode Lab: Connect</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <Users className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Rede Social</h3>
-          <p className="text-gray-400">Sistema de rede social em desenvolvimento...</p>
-        </CardContent>
-      </Card>
+const Connect = () => {
+  const { user } = useAuth();
+  const [posts, setPosts] = useState([]);
+  const [featuredPortfolios, setFeaturedPortfolios] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('feed');
+  const [newPost, setNewPost] = useState({ 
+    content: '', 
+    post_type: 'text', 
+    metadata: {}, 
+    tags: [] 
+  });
+  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [newPortfolio, setNewPortfolio] = useState({
+    title: '',
+    description: '',
+    project_url: '',
+    image_url: '',
+    technologies: []
+  });
+  const [showPortfolioSubmit, setShowPortfolioSubmit] = useState(false);
+
+  useEffect(() => {
+    fetchConnectData();
+  }, [activeTab]);
+
+  const fetchConnectData = async () => {
+    try {
+      if (activeTab === 'feed') {
+        const response = await axios.get(`${API}/connect/posts?limit=20`);
+        setPosts(response.data || []);
+      } else if (activeTab === 'portfolios') {
+        const response = await axios.get(`${API}/connect/portfolios/featured`);
+        setFeaturedPortfolios(response.data || []);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados do Connect:', error);
+      // Set empty arrays to prevent infinite loading
+      if (activeTab === 'feed') setPosts([]);
+      if (activeTab === 'portfolios') setFeaturedPortfolios([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreatePost = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert('Faça login para criar posts');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const postData = {
+        ...newPost,
+        tags: newPost.tags.filter(tag => tag.trim() !== '')
+      };
+
+      await axios.post(`${API}/connect/posts`, postData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setNewPost({ content: '', post_type: 'text', metadata: {}, tags: [] });
+      setShowCreatePost(false);
+      fetchConnectData(); // Refresh posts
+      alert('Post criado com sucesso!');
+    } catch (error) {
+      alert('Erro ao criar post: ' + (error.response?.data?.detail || 'Erro desconhecido'));
+    }
+  };
+
+  const handleLikePost = async (postId) => {
+    if (!user) {
+      alert('Faça login para curtir posts');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/connect/posts/${postId}/like`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchConnectData(); // Refresh to show updated likes
+    } catch (error) {
+      console.error('Erro ao curtir post:', error);
+    }
+  };
+
+  const handleSubmitPortfolio = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert('Faça login para submeter portfólio');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const portfolioData = {
+        ...newPortfolio,
+        technologies: newPortfolio.technologies.filter(tech => tech.trim() !== '')
+      };
+
+      await axios.post(`${API}/connect/portfolios/submit`, portfolioData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setNewPortfolio({
+        title: '',
+        description: '',
+        project_url: '',
+        image_url: '',
+        technologies: []
+      });
+      setShowPortfolioSubmit(false);
+      fetchConnectData(); // Refresh portfolios
+      alert('Portfólio submetido com sucesso!');
+    } catch (error) {
+      alert('Erro ao submeter portfólio: ' + (error.response?.data?.detail || 'Erro desconhecido'));
+    }
+  };
+
+  const handleVotePortfolio = async (portfolioId) => {
+    if (!user) {
+      alert('Faça login para votar');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/connect/portfolios/${portfolioId}/vote`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchConnectData(); // Refresh to show updated votes
+      alert('Voto registrado com sucesso!');
+    } catch (error) {
+      alert('Erro ao votar: ' + (error.response?.data?.detail || 'Erro desconhecido'));
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black">
+      <Navigation />
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex items-center gap-3 mb-8">
+          <Users className="h-8 w-8 text-copper" />
+          <h1 className="text-3xl font-bold text-white">Connect</h1>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-800 mb-6">
+            <TabsTrigger value="feed">Feed Social</TabsTrigger>
+            <TabsTrigger value="portfolios">Portfólios em Destaque</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="feed">
+            {/* Create Post Section */}
+            {user && !user.is_company && (
+              <Card className="bg-gray-900 border-copper/20 mb-6">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 bg-copper rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-black" />
+                    </div>
+                    <Button 
+                      onClick={() => setShowCreatePost(true)}
+                      className="flex-1 bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 justify-start"
+                      variant="outline"
+                    >
+                      O que você está desenvolvendo, {user.username}?
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Posts Feed */}
+            {loading ? (
+              <div className="text-center text-gray-400 py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-copper mx-auto mb-4"></div>
+                Carregando feed...
+              </div>
+            ) : posts.length === 0 ? (
+              <Card className="bg-gray-900 border-copper/20">
+                <CardContent className="p-8 text-center">
+                  <MessageSquare className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-white mb-2">Nenhum post ainda</h3>
+                  <p className="text-gray-400 mb-4">Seja o primeiro a compartilhar algo interessante!</p>
+                  {user && !user.is_company && (
+                    <Button 
+                      onClick={() => setShowCreatePost(true)}
+                      className="bg-copper hover:bg-copper/90 text-black"
+                    >
+                      Criar Post
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {posts.map(post => (
+                  <Card key={post.id} className="bg-gray-900 border-gray-700">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="h-10 w-10 bg-copper rounded-full flex items-center justify-center">
+                          <User className="h-5 w-5 text-black" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-semibold text-white">{post.author_username}</span>
+                            <span className="text-sm text-gray-400">
+                              {new Date(post.created_at).toLocaleDateString('pt-BR')}
+                            </span>
+                            {post.post_type !== 'text' && (
+                              <Badge variant="secondary">{post.post_type}</Badge>
+                            )}
+                          </div>
+                          
+                          <p className="text-gray-300 mb-4 whitespace-pre-wrap">{post.content}</p>
+                          
+                          {post.tags && post.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              {post.tags.map(tag => (
+                                <Badge key={tag} variant="default" className="bg-copper/20 text-copper">
+                                  #{tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center gap-4">
+                            <button 
+                              onClick={() => handleLikePost(post.id)}
+                              className="flex items-center gap-2 text-gray-400 hover:text-red-400 transition-colors"
+                            >
+                              <Heart className="h-5 w-5" />
+                              <span>{post.likes}</span>
+                            </button>
+                            <div className="flex items-center gap-2 text-gray-400">
+                              <MessageSquare className="h-5 w-5" />
+                              <span>{post.comments_count}</span>
+                            </div>
+                            <button className="flex items-center gap-2 text-gray-400 hover:text-blue-400 transition-colors">
+                              <Share2 className="h-5 w-5" />
+                              <span>Compartilhar</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="portfolios">
+            {/* Portfolio Submission */}
+            {user && !user.is_company && (
+              <Card className="bg-gray-900 border-copper/20 mb-6">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-copper" />
+                    Submeta seu Portfólio da Semana
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-400 mb-4">
+                    Compartilhe seu melhor projeto desta semana e concorra para ser destaque!
+                  </p>
+                  <Button 
+                    onClick={() => setShowPortfolioSubmit(true)}
+                    className="bg-copper hover:bg-copper/90 text-black"
+                  >
+                    Submeter Portfólio
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Featured Portfolios */}
+            {loading ? (
+              <div className="text-center text-gray-400 py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-copper mx-auto mb-4"></div>
+                Carregando portfólios...
+              </div>
+            ) : featuredPortfolios.length === 0 ? (
+              <Card className="bg-gray-900 border-copper/20">
+                <CardContent className="p-8 text-center">
+                  <Trophy className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-white mb-2">Nenhum portfólio esta semana</h3>
+                  <p className="text-gray-400">Seja o primeiro a submeter seu projeto!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                {featuredPortfolios.map(portfolio => (
+                  <Card key={portfolio.id} className="bg-gray-900 border-gray-700">
+                    <CardContent className="p-6">
+                      {portfolio.image_url && (
+                        <div className="aspect-video bg-gray-800 rounded-lg mb-4 overflow-hidden">
+                          <img 
+                            src={portfolio.image_url} 
+                            alt={portfolio.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => e.target.style.display = 'none'}
+                          />
+                        </div>
+                      )}
+                      
+                      <h3 className="text-xl font-semibold text-white mb-2">{portfolio.title}</h3>
+                      <p className="text-gray-300 mb-4">{portfolio.description}</p>
+                      
+                      {portfolio.technologies && portfolio.technologies.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {portfolio.technologies.map(tech => (
+                            <Badge key={tech} variant="secondary">
+                              {tech}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                          <span>Por {portfolio.user_username}</span>
+                          <div className="flex items-center gap-1">
+                            <Star className="h-4 w-4 text-yellow-400" />
+                            <span>{portfolio.votes} votos</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => window.open(portfolio.project_url, '_blank')}
+                            size="sm"
+                            variant="outline"
+                            className="border-copper/20 text-gray-300"
+                          >
+                            Ver Projeto
+                          </Button>
+                          {user && portfolio.user_id !== user.id && (
+                            <Button
+                              onClick={() => handleVotePortfolio(portfolio.id)}
+                              size="sm"
+                              className="bg-copper hover:bg-copper/90 text-black"
+                            >
+                              <Star className="h-4 w-4 mr-1" />
+                              Votar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Create Post Modal */}
+      <Dialog open={showCreatePost} onOpenChange={setShowCreatePost}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Post</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreatePost} className="space-y-4">
+            <div>
+              <Label className="text-gray-300">Tipo de Post</Label>
+              <select
+                value={newPost.post_type}
+                onChange={(e) => setNewPost(prev => ({...prev, post_type: e.target.value}))}
+                className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-white"
+              >
+                <option value="text">Texto</option>
+                <option value="project">Projeto</option>
+                <option value="achievement">Conquista</option>
+              </select>
+            </div>
+            
+            <div>
+              <Label className="text-gray-300">Conteúdo</Label>
+              <Textarea
+                value={newPost.content}
+                onChange={(e) => setNewPost(prev => ({...prev, content: e.target.value}))}
+                className="bg-gray-800 border-gray-700 text-white"
+                rows={4}
+                placeholder="O que você quer compartilhar?"
+                required
+              />
+            </div>
+            
+            <div>
+              <Label className="text-gray-300">Tags (separadas por vírgula)</Label>
+              <Input
+                value={newPost.tags.join(', ')}
+                onChange={(e) => setNewPost(prev => ({
+                  ...prev, 
+                  tags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)
+                }))}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="javascript, react, projeto"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                onClick={() => setShowCreatePost(false)}
+                variant="outline"
+                className="flex-1 border-gray-700 text-gray-300"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-copper hover:bg-copper/90 text-black"
+              >
+                Publicar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Portfolio Submission Modal */}
+      <Dialog open={showPortfolioSubmit} onOpenChange={setShowPortfolioSubmit}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submeter Portfólio da Semana</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitPortfolio} className="space-y-4">
+            <div>
+              <Label className="text-gray-300">Título do Projeto</Label>
+              <Input
+                value={newPortfolio.title}
+                onChange={(e) => setNewPortfolio(prev => ({...prev, title: e.target.value}))}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="Nome do seu projeto"
+                required
+              />
+            </div>
+            
+            <div>
+              <Label className="text-gray-300">Descrição</Label>
+              <Textarea
+                value={newPortfolio.description}
+                onChange={(e) => setNewPortfolio(prev => ({...prev, description: e.target.value}))}
+                className="bg-gray-800 border-gray-700 text-white"
+                rows={3}
+                placeholder="Descreva seu projeto..."
+                required
+              />
+            </div>
+            
+            <div>
+              <Label className="text-gray-300">URL do Projeto</Label>
+              <Input
+                value={newPortfolio.project_url}
+                onChange={(e) => setNewPortfolio(prev => ({...prev, project_url: e.target.value}))}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="https://github.com/usuario/projeto"
+                required
+              />
+            </div>
+            
+            <div>
+              <Label className="text-gray-300">URL da Imagem (opcional)</Label>
+              <Input
+                value={newPortfolio.image_url}
+                onChange={(e) => setNewPortfolio(prev => ({...prev, image_url: e.target.value}))}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="https://exemplo.com/screenshot.png"
+              />
+            </div>
+            
+            <div>
+              <Label className="text-gray-300">Tecnologias (separadas por vírgula)</Label>
+              <Input
+                value={newPortfolio.technologies.join(', ')}
+                onChange={(e) => setNewPortfolio(prev => ({
+                  ...prev, 
+                  technologies: e.target.value.split(',').map(tech => tech.trim()).filter(tech => tech)
+                }))}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="React, Node.js, PostgreSQL"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                onClick={() => setShowPortfolioSubmit(false)}
+                variant="outline"
+                className="flex-1 border-gray-700 text-gray-300"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-copper hover:bg-copper/90 text-black"
+              >
+                Submeter
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
-  </div>
-);
+  );
+};
 
 const Store = () => (
   <div className="min-h-screen bg-black">
