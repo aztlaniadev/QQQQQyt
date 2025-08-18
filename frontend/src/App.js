@@ -1767,10 +1767,10 @@ const Connect = () => {
   const fetchConnectData = async () => {
     try {
       if (activeTab === 'feed') {
-        const response = await axios.get(`${API}/connect/posts?limit=20`);
+        const response = await axios.get(`${API}/api/connect/posts?limit=20`);
         setPosts(response.data || []);
       } else if (activeTab === 'portfolios') {
-        const response = await axios.get(`${API}/connect/portfolios/featured`);
+        const response = await axios.get(`${API}/api/connect/portfolios/featured`);
         setFeaturedPortfolios(response.data || []);
       }
     } catch (error) {
