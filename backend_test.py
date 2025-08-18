@@ -2082,16 +2082,19 @@ def main():
             return tester.run_authentication_test_suite()
         elif sys.argv[1] == "--admin":
             return tester.run_advanced_admin_test_suite()
+        elif sys.argv[1] == "--connect":
+            return tester.run_connect_test_suite()
         elif sys.argv[1] == "--help":
             print("Acode Lab API Test Suite")
             print("Usage:")
             print("  python backend_test.py           # Run full test suite")
             print("  python backend_test.py --auth    # Run authentication tests only")
             print("  python backend_test.py --admin   # Run advanced admin functionality tests")
+            print("  python backend_test.py --connect # Run Connect system tests")
             print("  python backend_test.py --help    # Show this help")
             return 0
     else:
-        return tester.run_full_test_suite()
+        return tester.run_connect_test_suite()  # Default to Connect tests as requested
 
 if __name__ == "__main__":
     sys.exit(main())
