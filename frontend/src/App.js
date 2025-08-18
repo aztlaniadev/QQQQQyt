@@ -1868,7 +1868,7 @@ const Connect = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API}/connect/portfolios/${portfolioId}/vote`, {}, {
+      await axios.post(`${API}/api/connect/portfolios/${portfolioId}/vote`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchConnectData(); // Refresh to show updated votes
