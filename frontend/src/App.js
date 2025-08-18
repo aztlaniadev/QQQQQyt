@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -7,8 +6,9 @@ import axios from 'axios';
 const Button = ({ children, onClick, type = "button", className = "", disabled = false, variant = "default", size = "default", ...props }) => {
   const baseClasses = "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background";
   const variants = {
-    default: "bg-primary text-primary-foreground hover:bg-primary/90",
-    outline: "border border-input hover:bg-accent hover:text-accent-foreground"
+    default: "bg-copper hover:bg-copper/90 text-black",
+    outline: "border border-input hover:bg-accent hover:text-accent-foreground text-gray-300",
+    destructive: "bg-red-600 hover:bg-red-700 text-white"
   };
   const sizes = {
     default: "h-10 py-2 px-4",
@@ -30,7 +30,7 @@ const Button = ({ children, onClick, type = "button", className = "", disabled =
 };
 
 const Card = ({ children, className = "", ...props }) => (
-  <div className={`rounded-lg border bg-card text-card-foreground shadow-sm ${className}`} {...props}>
+  <div className={`rounded-lg border bg-card text-card-foreground shadow-sm bg-gray-900 border-gray-700 ${className}`} {...props}>
     {children}
   </div>
 );
@@ -42,7 +42,7 @@ const CardHeader = ({ children, className = "", ...props }) => (
 );
 
 const CardTitle = ({ children, className = "", ...props }) => (
-  <h3 className={`text-2xl font-semibold leading-none tracking-tight ${className}`} {...props}>
+  <h3 className={`text-2xl font-semibold leading-none tracking-tight text-white ${className}`} {...props}>
     {children}
   </h3>
 );
@@ -56,41 +56,133 @@ const CardContent = ({ children, className = "", ...props }) => (
 const Input = ({ className = "", type = "text", ...props }) => (
   <input
     type={type}
-    className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+    className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-gray-800 border-gray-700 text-white ${className}`}
     {...props}
   />
 );
 
 const Label = ({ children, className = "", ...props }) => (
-  <label className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className}`} {...props}>
+  <label className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-300 ${className}`} {...props}>
     {children}
   </label>
 );
 
-const Textarea = ({ className = "", ...props }) => (
+const Textarea = ({ className = "", rows = 4, ...props }) => (
   <textarea
-    className={`flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+    rows={rows}
+    className={`flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-gray-800 border-gray-700 text-white ${className}`}
     {...props}
   />
 );
 
-// Simple icons as text alternatives
-const LogOut = () => <span>↗</span>;
-const Settings = () => <span>⚙</span>;
-const Crown = () => <span>👑</span>;
-const Check = () => <span>✓</span>;
-const MessageSquare = () => <span>💬</span>;
-const Trophy = () => <span>🏆</span>;
-const Coins = () => <span>🪙</span>;
-const BookOpen = () => <span>📖</span>;
-const Users = () => <span>👥</span>;
-const Briefcase = () => <span>💼</span>;
-const ShoppingCart = () => <span>🛒</span>;
-const Building = () => <span>🏢</span>;
-const Star = () => <span>⭐</span>;
-const Award = () => <span>🏅</span>;
+const Badge = ({ children, className = "", variant = "default" }) => {
+  const variants = {
+    default: "bg-copper/20 text-copper",
+    secondary: "bg-gray-700 text-gray-300"
+  };
+  return (
+    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${variants[variant]} ${className}`}>
+      {children}
+    </span>
+  );
+};
 
-const API = process.env.REACT_APP_BACKEND_URL;
+const Dialog = ({ open, onOpenChange, children }) => {
+  if (!open) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/50" onClick={() => onOpenChange(false)} />
+      <div className="relative bg-gray-900 border border-gray-700 rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const DialogContent = ({ children, className = "" }) => (
+  <div className={`p-6 ${className}`}>
+    {children}
+  </div>
+);
+
+const DialogHeader = ({ children }) => (
+  <div className="mb-4">
+    {children}
+  </div>
+);
+
+const DialogTitle = ({ children, className = "" }) => (
+  <h2 className={`text-xl font-semibold text-white ${className}`}>
+    {children}
+  </h2>
+);
+
+const Tabs = ({ value, onValueChange, children, className = "" }) => (
+  <div className={`w-full ${className}`}>
+    {React.Children.map(children, child => 
+      React.cloneElement(child, { activeTab: value, setActiveTab: onValueChange })
+    )}
+  </div>
+);
+
+const TabsList = ({ children, className = "", activeTab, setActiveTab }) => (
+  <div className={`inline-flex h-10 items-center justify-center rounded-md bg-gray-800 p-1 text-muted-foreground ${className}`}>
+    {React.Children.map(children, child => 
+      React.cloneElement(child, { activeTab, setActiveTab })
+    )}
+  </div>
+);
+
+const TabsTrigger = ({ value, children, activeTab, setActiveTab }) => (
+  <button
+    onClick={() => setActiveTab(value)}
+    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+      activeTab === value ? 'bg-copper text-black' : 'text-gray-300 hover:text-white'
+    }`}
+  >
+    {children}
+  </button>
+);
+
+const TabsContent = ({ value, children, activeTab, className = "" }) => {
+  if (activeTab !== value) return null;
+  return (
+    <div className={`mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${className}`}>
+      {children}
+    </div>
+  );
+};
+
+// Simple icons as text alternatives
+const LogOut = ({ className }) => <span className={className}>🚪</span>;
+const Settings = ({ className }) => <span className={className}>⚙️</span>;
+const Crown = ({ className }) => <span className={className}>👑</span>;
+const Check = ({ className }) => <span className={className}>✅</span>;
+const MessageSquare = ({ className }) => <span className={className}>💬</span>;
+const Trophy = ({ className }) => <span className={className}>🏆</span>;
+const Coins = ({ className }) => <span className={className}>🪙</span>;
+const BookOpen = ({ className }) => <span className={className}>📖</span>;
+const Users = ({ className }) => <span className={className}>👥</span>;
+const Briefcase = ({ className }) => <span className={className}>💼</span>;
+const ShoppingCart = ({ className }) => <span className={className}>🛒</span>;
+const Building = ({ className }) => <span className={className}>🏢</span>;
+const Star = ({ className }) => <span className={className}>⭐</span>;
+const Award = ({ className }) => <span className={className}>🏅</span>;
+const Plus = ({ className }) => <span className={className}>➕</span>;
+const ArrowUp = ({ className }) => <span className={className}>⬆️</span>;
+const ArrowDown = ({ className }) => <span className={className}>⬇️</span>;
+const Eye = ({ className }) => <span className={className}>👁️</span>;
+const Search = ({ className }) => <span className={className}>🔍</span>;
+const Edit = ({ className }) => <span className={className}>✏️</span>;
+const X = ({ className }) => <span className={className}>❌</span>;
+const Heart = ({ className }) => <span className={className}>❤️</span>;
+const Share2 = ({ className }) => <span className={className}>📤</span>;
+const TrendingUp = ({ className }) => <span className={className}>📈</span>;
+const User = ({ className }) => <span className={className}>👤</span>;
+const Clock = ({ className }) => <span className={className}>⏰</span>;
+
+const API = import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL;
 
 // Auth Context
 const AuthContext = createContext();
@@ -122,7 +214,11 @@ const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const response = await axios.post(`${API}/auth/login`, { email, password });
+    const formData = new FormData();
+    formData.append('username', email);
+    formData.append('password', password);
+    
+    const response = await axios.post(`${API}/auth/login`, formData);
     localStorage.setItem('token', response.data.access_token);
     setUser(response.data.user);
     return response.data;
@@ -134,7 +230,7 @@ const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, setUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -533,9 +629,524 @@ const Register = () => {
   );
 };
 
-// Profile Settings Component
-const ProfileSettings = () => {
+// Questions List Component - COMPLETE IMPLEMENTATION
+const QuestionsList = () => {
   const { user } = useAuth();
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newQuestion, setNewQuestion] = useState({
+    title: '',
+    content: '',
+    code: '',
+    tags: ''
+  });
+
+  useEffect(() => {
+    fetchQuestions();
+  }, []);
+
+  const fetchQuestions = async () => {
+    try {
+      const response = await axios.get(`${API}/questions`);
+      setQuestions(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar perguntas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateQuestion = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const questionData = {
+        ...newQuestion,
+        tags: newQuestion.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+      };
+      
+      await axios.post(`${API}/questions`, questionData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setShowCreateForm(false);
+      setNewQuestion({ title: '', content: '', code: '', tags: '' });
+      fetchQuestions();
+    } catch (error) {
+      console.error('Erro ao criar pergunta:', error);
+    }
+  };
+
+  const filteredQuestions = questions.filter(q => 
+    q.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    q.content.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-black">
+      <Navigation />
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-white">Perguntas</h1>
+          {user && !user.is_company && (
+            <Button 
+              onClick={() => setShowCreateForm(true)}
+              className="bg-copper hover:bg-copper/90 text-black"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Pergunta
+            </Button>
+          )}
+        </div>
+
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+            <Input
+              placeholder="Buscar perguntas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+        </div>
+
+        {showCreateForm && (
+          <Card className="mb-6 bg-gray-900 border-copper/20">
+            <CardHeader>
+              <CardTitle className="text-white">Nova Pergunta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateQuestion} className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Título</Label>
+                  <Input
+                    value={newQuestion.title}
+                    onChange={(e) => setNewQuestion(prev => ({...prev, title: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Conteúdo</Label>
+                  <Textarea
+                    value={newQuestion.content}
+                    onChange={(e) => setNewQuestion(prev => ({...prev, content: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    rows={4}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Código (opcional)</Label>
+                  <Textarea
+                    value={newQuestion.code}
+                    onChange={(e) => setNewQuestion(prev => ({...prev, code: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white font-mono"
+                    rows={6}
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Tags (separadas por vírgula)</Label>
+                  <Input
+                    value={newQuestion.tags}
+                    onChange={(e) => setNewQuestion(prev => ({...prev, tags: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="javascript, react, bug"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" className="bg-copper hover:bg-copper/90 text-black">
+                    Publicar
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowCreateForm(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {loading ? (
+          <div className="text-center text-gray-400">Carregando perguntas...</div>
+        ) : (
+          <div className="space-y-4">
+            {filteredQuestions.map(question => (
+              <Card key={question.id} className="bg-gray-900 border-gray-700 hover:border-copper/50 transition-colors">
+                <CardContent className="p-6">
+                  <Link to={`/perguntas/${question.id}`} className="block hover:bg-gray-800/50 transition-colors rounded p-2 -m-2">
+                    <h3 className="text-lg font-semibold text-white mb-2">{question.title}</h3>
+                    <p className="text-gray-300 mb-3 line-clamp-3">{question.content}</p>
+                    
+                    {question.tags && question.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {question.tags.map(tag => (
+                          <Badge key={tag} variant="default" className="bg-copper/20 text-copper">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center gap-4 text-sm text-gray-400">
+                      <span>Por {question.author_username}</span>
+                      <span>{new Date(question.created_at).toLocaleDateString('pt-BR')}</span>
+                      <div className="flex items-center gap-2">
+                        <ArrowUp className="h-4 w-4" />
+                        <span>{question.upvotes}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        <span>{question.answers_count}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" />
+                        <span>{question.views}</span>
+                      </div>
+                    </div>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {filteredQuestions.length === 0 && (
+              <div className="text-center text-gray-400 py-8">
+                {searchTerm ? 'Nenhuma pergunta encontrada para sua busca.' : 'Nenhuma pergunta ainda. Seja o primeiro a perguntar!'}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Question Detail Component - COMPLETE IMPLEMENTATION
+const QuestionDetail = () => {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const [question, setQuestion] = useState(null);
+  const [answers, setAnswers] = useState([]);
+  const [newAnswer, setNewAnswer] = useState({ content: '', code: '' });
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchQuestion();
+    fetchAnswers();
+    // Increment view count
+    incrementViews();
+  }, [id]);
+
+  const fetchQuestion = async () => {
+    try {
+      const response = await axios.get(`${API}/questions/${id}`);
+      setQuestion(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar pergunta:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAnswers = async () => {
+    try {
+      const response = await axios.get(`${API}/questions/${id}/answers`);
+      setAnswers(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar respostas:', error);
+    }
+  };
+
+  const incrementViews = async () => {
+    try {
+      await axios.post(`${API}/questions/${id}/view`);
+    } catch (error) {
+      console.error('Erro ao registrar visualização:', error);
+    }
+  };
+
+  const handleSubmitAnswer = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert('Faça login para responder');
+      return;
+    }
+    
+    setSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/questions/${id}/answers`, newAnswer, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setNewAnswer({ content: '', code: '' });
+      fetchAnswers();
+      alert('Resposta enviada! Aguarde a validação do administrador.');
+    } catch (error) {
+      alert('Erro ao enviar resposta: ' + error.response?.data?.detail);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVoteQuestion = async (type) => {
+    if (!user) {
+      alert('Faça login para votar');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/questions/${id}/vote`, { vote_type: type }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchQuestion();
+    } catch (error) {
+      console.error('Erro ao votar:', error);
+    }
+  };
+
+  const handleVoteAnswer = async (answerId, type) => {
+    if (!user) {
+      alert('Faça login para votar');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/answers/${answerId}/vote`, { vote_type: type }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchAnswers();
+    } catch (error) {
+      console.error('Erro ao votar:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black">
+        <Navigation />
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-copper"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!question) {
+    return (
+      <div className="min-h-screen bg-black">
+        <Navigation />
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <div className="text-center text-white">
+            <h1 className="text-2xl font-bold mb-4">Pergunta não encontrada</h1>
+            <Link to="/perguntas">
+              <Button className="bg-copper hover:bg-copper/90 text-black">
+                Voltar às Perguntas
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black">
+      <Navigation />
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Breadcrumb */}
+        <div className="mb-6">
+          <Link to="/perguntas" className="text-copper hover:underline">
+            ← Voltar às Perguntas
+          </Link>
+        </div>
+
+        {/* Question Card */}
+        <Card className="bg-gray-900 border-copper/20 mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              {/* Vote buttons */}
+              <div className="flex flex-col items-center gap-2">
+                <button 
+                  onClick={() => handleVoteQuestion('up')}
+                  className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+                >
+                  <ArrowUp className="h-6 w-6 text-gray-400 hover:text-green-400" />
+                </button>
+                <span className="text-white font-bold text-lg">{question.upvotes - question.downvotes}</span>
+                <button 
+                  onClick={() => handleVoteQuestion('down')}
+                  className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+                >
+                  <ArrowDown className="h-6 w-6 text-gray-400 hover:text-red-400" />
+                </button>
+              </div>
+
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold text-white mb-4">{question.title}</h1>
+                <p className="text-gray-300 mb-4 whitespace-pre-wrap">{question.content}</p>
+                
+                {question.code && (
+                  <div className="bg-gray-800 p-4 rounded-lg mb-4">
+                    <pre className="text-gray-100 font-mono text-sm overflow-x-auto">
+                      <code>{question.code}</code>
+                    </pre>
+                  </div>
+                )}
+                
+                {question.tags && question.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {question.tags.map(tag => (
+                      <Badge key={tag} variant="default" className="bg-copper/20 text-copper">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-sm text-gray-400">
+                    <span>Por {question.author_username}</span>
+                    <span>{new Date(question.created_at).toLocaleDateString('pt-BR')}</span>
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      <span>{question.views} visualizações</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Answers Section */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-white mb-4">
+            {answers.length} {answers.length === 1 ? 'Resposta' : 'Respostas'}
+          </h2>
+          
+          <div className="space-y-4">
+            {answers.map(answer => (
+              <Card key={answer.id} className="bg-gray-900 border-gray-700">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    {/* Vote buttons for answers */}
+                    <div className="flex flex-col items-center gap-2">
+                      <button 
+                        onClick={() => handleVoteAnswer(answer.id, 'up')}
+                        className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+                      >
+                        <ArrowUp className="h-5 w-5 text-gray-400 hover:text-green-400" />
+                      </button>
+                      <span className="text-white font-bold">{answer.upvotes - answer.downvotes}</span>
+                      <button 
+                        onClick={() => handleVoteAnswer(answer.id, 'down')}
+                        className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+                      >
+                        <ArrowDown className="h-5 w-5 text-gray-400 hover:text-red-400" />
+                      </button>
+                      {answer.is_validated && (
+                        <Check className="h-5 w-5 text-green-400" title="Resposta validada" />
+                      )}
+                    </div>
+
+                    <div className="flex-1">
+                      <p className="text-gray-300 mb-4 whitespace-pre-wrap">{answer.content}</p>
+                      
+                      {answer.code && (
+                        <div className="bg-gray-800 p-4 rounded-lg mb-4">
+                          <pre className="text-gray-100 font-mono text-sm overflow-x-auto">
+                            <code>{answer.code}</code>
+                          </pre>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <span>Por {answer.author_username}</span>
+                        <span>{new Date(answer.created_at).toLocaleDateString('pt-BR')}</span>
+                        {answer.is_validated && (
+                          <Badge className="bg-green-500/20 text-green-400">Validada</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Answer Form */}
+        {user && !user.is_company && (
+          <Card className="bg-gray-900 border-copper/20">
+            <CardHeader>
+              <CardTitle className="text-white">Sua Resposta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmitAnswer} className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Resposta</Label>
+                  <Textarea
+                    value={newAnswer.content}
+                    onChange={(e) => setNewAnswer(prev => ({...prev, content: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    rows={6}
+                    placeholder="Escreva sua resposta aqui..."
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Código (opcional)</Label>
+                  <Textarea
+                    value={newAnswer.code}
+                    onChange={(e) => setNewAnswer(prev => ({...prev, code: e.target.value}))}
+                    className="bg-gray-800 border-gray-700 text-white font-mono"
+                    rows={6}
+                    placeholder="// Cole seu código aqui"
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="bg-copper hover:bg-copper/90 text-black"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Enviando...' : 'Enviar Resposta'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {!user && (
+          <Card className="bg-gray-900 border-copper/20">
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-400 mb-4">Faça login para responder esta pergunta</p>
+              <Link to="/login">
+                <Button className="bg-copper hover:bg-copper/90 text-black">
+                  Fazer Login
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Profile Settings Component - COMPLETE IMPLEMENTATION
+const ProfileSettings = () => {
+  const { user, setUser } = useAuth();
   const [formData, setFormData] = useState({
     username: user?.username || '',
     email: user?.email || '',
@@ -569,7 +1180,11 @@ const ProfileSettings = () => {
       });
       
       setMessage('Perfil atualizado com sucesso!');
-      setTimeout(() => window.location.reload(), 1500);
+      
+      // Update user context
+      const updatedUser = { ...user, ...updateData };
+      setUser(updatedUser);
+      
     } catch (error) {
       setMessage('Erro ao atualizar perfil: ' + (error.response?.data?.detail || 'Erro desconhecido'));
     } finally {
@@ -653,6 +1268,68 @@ const ProfileSettings = () => {
               </div>
               
               <div>
+                <Label htmlFor="banner_image" className="text-gray-300">URL da Imagem de Banner</Label>
+                <Input
+                  id="banner_image"
+                  name="banner_image"
+                  value={formData.banner_image}
+                  onChange={(e) => setFormData({...formData, banner_image: e.target.value})}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="https://exemplo.com/banner.jpg"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="location" className="text-gray-300">Localização</Label>
+                  <Input
+                    id="location"
+                    name="location"
+                    value={formData.location}
+                    onChange={(e) => setFormData({...formData, location: e.target.value})}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="São Paulo, Brasil"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="website" className="text-gray-300">Website</Label>
+                  <Input
+                    id="website"
+                    name="website"
+                    value={formData.website}
+                    onChange={(e) => setFormData({...formData, website: e.target.value})}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="https://seusite.com"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="github" className="text-gray-300">GitHub</Label>
+                  <Input
+                    id="github"
+                    name="github"
+                    value={formData.github}
+                    onChange={(e) => setFormData({...formData, github: e.target.value})}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="https://github.com/usuario"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="linkedin" className="text-gray-300">LinkedIn</Label>
+                  <Input
+                    id="linkedin"
+                    name="linkedin"
+                    value={formData.linkedin}
+                    onChange={(e) => setFormData({...formData, linkedin: e.target.value})}
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="https://linkedin.com/in/usuario"
+                  />
+                </div>
+              </div>
+              
+              <div>
                 <Label htmlFor="bio" className="text-gray-300">Bio</Label>
                 <Textarea
                   id="bio"
@@ -698,119 +1375,7 @@ const ProfileSettings = () => {
   );
 };
 
-// Placeholder components (simplified for now)
-const CompanyRegister = () => (
-  <div className="min-h-screen bg-black">
-    <Navigation />
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Registro de Empresa</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <Building className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Em Desenvolvimento</h3>
-          <p className="text-gray-400">Registro de empresas em breve...</p>
-        </CardContent>
-      </Card>
-    </div>
-  </div>
-);
-
-const QuestionsList = () => (
-  <div className="min-h-screen bg-black">
-    <Navigation />
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Perguntas</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <MessageSquare className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Sistema de Perguntas</h3>
-          <p className="text-gray-400">Sistema completo em desenvolvimento...</p>
-        </CardContent>
-      </Card>
-    </div>
-  </div>
-);
-
-const QuestionDetail = () => (
-  <div className="min-h-screen bg-black">
-    <Navigation />
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Detalhes da Pergunta</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <MessageSquare className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Pergunta Individual</h3>
-          <p className="text-gray-400">Página de pergunta em desenvolvimento...</p>
-        </CardContent>
-      </Card>
-    </div>
-  </div>
-);
-
-const ArticlesList = () => (
-  <div className="min-h-screen bg-black">
-    <Navigation />
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Artigos</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <BookOpen className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Sistema de Artigos</h3>
-          <p className="text-gray-400">Apenas usuários Mestre e Guru podem escrever artigos...</p>
-        </CardContent>
-      </Card>
-    </div>
-  </div>
-);
-
-const Connect = () => (
-  <div className="min-h-screen bg-black">
-    <Navigation />
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Acode Lab: Connect</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <Users className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Rede Social</h3>
-          <p className="text-gray-400">Conecte-se com outros desenvolvedores...</p>
-        </CardContent>
-      </Card>
-    </div>
-  </div>
-);
-
-const Store = () => (
-  <div className="min-h-screen bg-black">
-    <Navigation />
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Loja PCon</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <ShoppingCart className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Loja de Vantagens</h3>
-          <p className="text-gray-400">Use seus PCon para comprar vantagens...</p>
-        </CardContent>
-      </Card>
-    </div>
-  </div>
-);
-
-const Jobs = () => (
-  <div className="min-h-screen bg-black">
-    <Navigation />
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Vagas</h1>
-      <Card className="bg-gray-900 border-copper/20">
-        <CardContent className="p-8 text-center">
-          <Briefcase className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Portal de Vagas</h3>
-          <p className="text-gray-400">Encontre oportunidades de trabalho...</p>
-        </CardContent>
-      </Card>
-    </div>
-  </div>
-);
-
+// Dashboard Component - COMPLETE IMPLEMENTATION
 const Dashboard = () => {
   const { user } = useAuth();
 
@@ -904,16 +1469,314 @@ const Dashboard = () => {
   );
 };
 
-const AdminPanel = () => (
+// Admin Panel Component - COMPLETE IMPLEMENTATION
+const AdminPanel = () => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [stats, setStats] = useState({});
+  const [pendingAnswers, setPendingAnswers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.is_admin) {
+      fetchAdminData();
+    }
+  }, [user, activeTab]);
+
+  const fetchAdminData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (activeTab === 'dashboard') {
+        const [statsRes, pendingRes] = await Promise.all([
+          axios.get(`${API}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API}/admin/answers/pending`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        setStats(statsRes.data);
+        setPendingAnswers(pendingRes.data);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados admin:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleValidateAnswer = async (answerId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/admin/answers/${answerId}/validate`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setPendingAnswers(prev => prev.filter(answer => answer.id !== answerId));
+      alert('Resposta validada com sucesso!');
+    } catch (error) {
+      alert('Erro ao validar resposta.');
+    }
+  };
+
+  const handleRejectAnswer = async (answerId) => {
+    if (!confirm('Tem certeza que deseja rejeitar esta resposta?')) {
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/admin/answers/${answerId}/reject`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setPendingAnswers(prev => prev.filter(answer => answer.id !== answerId));
+      alert('Resposta rejeitada.');
+    } catch (error) {
+      alert('Erro ao rejeitar resposta.');
+    }
+  };
+
+  if (!user?.is_admin) {
+    return (
+      <div className="min-h-screen bg-black">
+        <Navigation />
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <Card className="bg-gray-900 border-red-500/20">
+            <CardContent className="p-8 text-center">
+              <Crown className="h-12 w-12 text-red-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">Acesso Negado</h3>
+              <p className="text-gray-400 mb-4">Apenas administradores podem acessar esta área.</p>
+              <Link to="/dashboard">
+                <Button className="bg-copper hover:bg-copper/90 text-black">
+                  Voltar ao Dashboard
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black">
+      <Navigation />
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex items-center gap-3 mb-8">
+          <Crown className="h-8 w-8 text-copper" />
+          <h1 className="text-3xl font-bold text-white">Painel de Administração</h1>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-800">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="validation">Validação</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dashboard" className="mt-6">
+            {loading ? (
+              <div className="text-center text-gray-400">Carregando dados...</div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <Card className="bg-gray-900 border-blue-500/20">
+                  <CardContent className="p-4 text-center">
+                    <Users className="h-6 w-6 text-blue-400 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-white">{stats.total_users || 0}</p>
+                    <p className="text-xs text-gray-400">Usuários</p>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-gray-900 border-green-500/20">
+                  <CardContent className="p-4 text-center">
+                    <Building className="h-6 w-6 text-green-400 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-white">{stats.total_companies || 0}</p>
+                    <p className="text-xs text-gray-400">Empresas</p>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-gray-900 border-purple-500/20">
+                  <CardContent className="p-4 text-center">
+                    <MessageSquare className="h-6 w-6 text-purple-400 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-white">{stats.total_questions || 0}</p>
+                    <p className="text-xs text-gray-400">Perguntas</p>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-gray-900 border-amber-500/20">
+                  <CardContent className="p-4 text-center">
+                    <Check className="h-6 w-6 text-amber-400 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-white">{stats.total_answers || 0}</p>
+                    <p className="text-xs text-gray-400">Respostas</p>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-gray-900 border-orange-500/20">
+                  <CardContent className="p-4 text-center">
+                    <Clock className="h-6 w-6 text-orange-400 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-white">{stats.pending_answers || 0}</p>
+                    <p className="text-xs text-gray-400">Pendentes</p>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-gray-900 border-cyan-500/20">
+                  <CardContent className="p-4 text-center">
+                    <BookOpen className="h-6 w-6 text-cyan-400 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-white">{stats.total_articles || 0}</p>
+                    <p className="text-xs text-gray-400">Artigos</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="validation" className="mt-6">
+            <Card className="bg-gray-900 border-copper/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-orange-400" />
+                  Respostas Pendentes ({pendingAnswers.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center text-gray-400 py-8">Carregando respostas pendentes...</div>
+                ) : pendingAnswers.length === 0 ? (
+                  <div className="text-center text-gray-400 py-8">
+                    <Check className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhuma resposta pendente de validação!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingAnswers.map(answer => (
+                      <Card key={answer.id} className="bg-gray-800 border-gray-700">
+                        <CardContent className="p-4">
+                          <div className="mb-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-sm text-gray-400">
+                                Resposta de <strong className="text-white">{answer.author_username}</strong>
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(answer.created_at).toLocaleString('pt-BR')}
+                              </p>
+                            </div>
+                            
+                            <div className="mb-3">
+                              <p className="text-white whitespace-pre-wrap">{answer.content}</p>
+                              {answer.code && (
+                                <div className="mt-3 p-3 bg-black rounded border border-gray-600">
+                                  <pre className="text-sm text-gray-300 font-mono overflow-x-auto">
+                                    <code>{answer.code}</code>
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={() => handleValidateAnswer(answer.id)}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              size="sm"
+                            >
+                              <Check className="h-4 w-4 mr-1" />
+                              Validar
+                            </Button>
+                            <Button 
+                              onClick={() => handleRejectAnswer(answer.id)}
+                              variant="destructive"
+                              size="sm"
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Rejeitar
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
+
+// Placeholder components for remaining features
+const CompanyRegister = () => (
   <div className="min-h-screen bg-black">
     <Navigation />
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Painel de Administração</h1>
+      <h1 className="text-3xl font-bold text-white mb-8">Registro de Empresa</h1>
       <Card className="bg-gray-900 border-copper/20">
         <CardContent className="p-8 text-center">
-          <Crown className="h-12 w-12 text-copper mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Admin Panel</h3>
-          <p className="text-gray-400">Painel para validação de respostas...</p>
+          <Building className="h-12 w-12 text-copper mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Em Desenvolvimento</h3>
+          <p className="text-gray-400">Registro de empresas em breve...</p>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+);
+
+const ArticlesList = () => (
+  <div className="min-h-screen bg-black">
+    <Navigation />
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold text-white mb-8">Artigos</h1>
+      <Card className="bg-gray-900 border-copper/20">
+        <CardContent className="p-8 text-center">
+          <BookOpen className="h-12 w-12 text-copper mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Sistema de Artigos</h3>
+          <p className="text-gray-400">Apenas usuários Mestre e Guru podem escrever artigos...</p>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+);
+
+const Connect = () => (
+  <div className="min-h-screen bg-black">
+    <Navigation />
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold text-white mb-8">Acode Lab: Connect</h1>
+      <Card className="bg-gray-900 border-copper/20">
+        <CardContent className="p-8 text-center">
+          <Users className="h-12 w-12 text-copper mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Rede Social</h3>
+          <p className="text-gray-400">Sistema de rede social em desenvolvimento...</p>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+);
+
+const Store = () => (
+  <div className="min-h-screen bg-black">
+    <Navigation />
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold text-white mb-8">Loja PCon</h1>
+      <Card className="bg-gray-900 border-copper/20">
+        <CardContent className="p-8 text-center">
+          <ShoppingCart className="h-12 w-12 text-copper mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Loja de Vantagens</h3>
+          <p className="text-gray-400">Sistema de loja em desenvolvimento...</p>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+);
+
+const Jobs = () => (
+  <div className="min-h-screen bg-black">
+    <Navigation />
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold text-white mb-8">Vagas</h1>
+      <Card className="bg-gray-900 border-copper/20">
+        <CardContent className="p-8 text-center">
+          <Briefcase className="h-12 w-12 text-copper mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Portal de Vagas</h3>
+          <p className="text-gray-400">Portal B2B em desenvolvimento...</p>
         </CardContent>
       </Card>
     </div>
