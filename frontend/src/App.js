@@ -1841,7 +1841,7 @@ const Connect = () => {
         technologies: newPortfolio.technologies.filter(tech => tech.trim() !== '')
       };
 
-      await axios.post(`${API}/connect/portfolios/submit`, portfolioData, {
+      await axios.post(`${API}/api/connect/portfolios/submit`, portfolioData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
