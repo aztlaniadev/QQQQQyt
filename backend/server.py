@@ -665,6 +665,229 @@ async def follow_user(user_id: str, current_user: dict = Depends(get_current_use
         )
         return {"message": "User followed successfully"}
 
+# CONNECT ROUTES
+@api_router.get("/connect/posts")
+async def get_connect_posts(skip: int = 0, limit: int = 20, user_id: str = None):
+    """Get posts for Connect feed"""
+    query = {}
+    if user_id:
+        query["author_id"] = user_id
+    
+    posts = await db.posts.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    return posts
+
+@api_router.post("/connect/posts")
+async def create_post(post: PostCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new post in Connect"""
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Companies cannot create social posts")
+    
+    new_post = Post(
+        **post.dict(),
+        author_id=current_user["id"],
+        author_username=current_user["username"]
+    )
+    
+    await db.posts.insert_one(new_post.dict())
+    
+    # Award PC points for creating posts
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$inc": {"pc_points": 1, "pcon_points": 2}}
+    )
+    
+    return {"message": "Post created successfully", "post_id": new_post.id}
+
+@api_router.post("/connect/posts/{post_id}/like")
+async def toggle_like_post(post_id: str, current_user: dict = Depends(get_current_user)):
+    """Toggle like on a post"""
+    post = await db.posts.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    existing_like = await db.likes.find_one({
+        "user_id": current_user["id"],
+        "target_id": post_id,
+        "target_type": "post"
+    })
+    
+    if existing_like:
+        # Unlike
+        await db.likes.delete_one({"id": existing_like["id"]})
+        await db.posts.update_one({"id": post_id}, {"$inc": {"likes": -1}})
+        return {"message": "Post unliked", "liked": False}
+    else:
+        # Like
+        like = Like(
+            user_id=current_user["id"],
+            user_username=current_user["username"],
+            target_id=post_id,
+            target_type="post"
+        )
+        await db.likes.insert_one(like.dict())
+        await db.posts.update_one({"id": post_id}, {"$inc": {"likes": 1}})
+        
+        # Award points to post author
+        await db.users.update_one(
+            {"id": post["author_id"]},
+            {"$inc": {"pc_points": 1}}
+        )
+        
+        return {"message": "Post liked", "liked": True}
+
+@api_router.get("/connect/posts/{post_id}/comments")
+async def get_post_comments(post_id: str):
+    """Get comments for a post"""
+    comments = await db.comments.find({"post_id": post_id}).sort("created_at", 1).to_list(100)
+    return comments
+
+@api_router.post("/connect/posts/{post_id}/comments")
+async def create_comment(post_id: str, comment: CommentCreate, current_user: dict = Depends(get_current_user)):
+    """Create a comment on a post"""
+    post = await db.posts.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    new_comment = Comment(
+        **comment.dict(),
+        post_id=post_id,
+        author_id=current_user["id"],
+        author_username=current_user["username"]
+    )
+    
+    await db.comments.insert_one(new_comment.dict())
+    
+    # Update post comment count
+    await db.posts.update_one(
+        {"id": post_id},
+        {"$inc": {"comments_count": 1}}
+    )
+    
+    # Award points
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$inc": {"pc_points": 1}}
+    )
+    
+    return {"message": "Comment created successfully", "comment_id": new_comment.id}
+
+@api_router.post("/connect/comments/{comment_id}/like")
+async def toggle_like_comment(comment_id: str, current_user: dict = Depends(get_current_user)):
+    """Toggle like on a comment"""
+    comment = await db.comments.find_one({"id": comment_id})
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    
+    existing_like = await db.likes.find_one({
+        "user_id": current_user["id"],
+        "target_id": comment_id,
+        "target_type": "comment"
+    })
+    
+    if existing_like:
+        # Unlike
+        await db.likes.delete_one({"id": existing_like["id"]})
+        await db.comments.update_one({"id": comment_id}, {"$inc": {"likes": -1}})
+        return {"message": "Comment unliked", "liked": False}
+    else:
+        # Like
+        like = Like(
+            user_id=current_user["id"],
+            user_username=current_user["username"],
+            target_id=comment_id,
+            target_type="comment"
+        )
+        await db.likes.insert_one(like.dict())
+        await db.comments.update_one({"id": comment_id}, {"$inc": {"likes": 1}})
+        return {"message": "Comment liked", "liked": True}
+
+# PORTFOLIO ROUTES
+@api_router.get("/connect/portfolios/featured")
+async def get_featured_portfolios():
+    """Get featured portfolios of the week"""
+    import datetime
+    current_week = datetime.datetime.now().strftime("%Y-W%U")
+    
+    portfolios = await db.portfolio_submissions.find({
+        "week_year": current_week
+    }).sort("votes", -1).limit(10).to_list(10)
+    
+    return portfolios
+
+@api_router.post("/connect/portfolios/submit")
+async def submit_portfolio(portfolio: PortfolioSubmissionCreate, current_user: dict = Depends(get_current_user)):
+    """Submit portfolio for weekly feature"""
+    if current_user.get("is_company"):
+        raise HTTPException(status_code=403, detail="Companies cannot submit portfolios")
+    
+    import datetime
+    current_week = datetime.datetime.now().strftime("%Y-W%U")
+    
+    # Check if user already submitted this week
+    existing = await db.portfolio_submissions.find_one({
+        "user_id": current_user["id"],
+        "week_year": current_week
+    })
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="You have already submitted a portfolio this week")
+    
+    new_submission = PortfolioSubmission(
+        **portfolio.dict(),
+        user_id=current_user["id"],
+        user_username=current_user["username"],
+        week_year=current_week
+    )
+    
+    await db.portfolio_submissions.insert_one(new_submission.dict())
+    
+    # Award points for submission
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$inc": {"pc_points": 5, "pcon_points": 10}}
+    )
+    
+    return {"message": "Portfolio submitted successfully", "submission_id": new_submission.id}
+
+@api_router.post("/connect/portfolios/{portfolio_id}/vote")
+async def vote_portfolio(portfolio_id: str, current_user: dict = Depends(get_current_user)):
+    """Vote for a featured portfolio"""
+    portfolio = await db.portfolio_submissions.find_one({"id": portfolio_id})
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if portfolio["user_id"] == current_user["id"]:
+        raise HTTPException(status_code=400, detail="You cannot vote for your own portfolio")
+    
+    # Check if user already voted for this portfolio
+    existing_vote = await db.votes.find_one({
+        "user_id": current_user["id"],
+        "target_id": portfolio_id,
+        "target_type": "portfolio"
+    })
+    
+    if existing_vote:
+        raise HTTPException(status_code=400, detail="You have already voted for this portfolio")
+    
+    # Create vote
+    vote = Vote(
+        user_id=current_user["id"],
+        target_id=portfolio_id,
+        target_type="portfolio",
+        vote_type="up"
+    )
+    
+    await db.votes.insert_one(vote.dict())
+    await db.portfolio_submissions.update_one({"id": portfolio_id}, {"$inc": {"votes": 1}})
+    
+    # Award points to portfolio owner
+    await db.users.update_one(
+        {"id": portfolio["user_id"]},
+        {"$inc": {"pc_points": 2}}
+    )
+    
+    return {"message": "Vote recorded successfully"}
+
 # ADMIN ROUTES
 @api_router.get("/admin/stats")
 async def get_admin_stats(current_user: dict = Depends(get_current_user)):
