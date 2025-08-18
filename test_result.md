@@ -154,17 +154,53 @@ backend:
           comment: "Sistema de submissão e votação de portfólios semanais"
 
 frontend:
-  - task: "Implementar painel admin avançado com abas"
-    implemented: true
-    working: true
+  - task: "Criar página Connect com feed de posts"
+    implemented: false
+    working: "NA"
     file: "App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-        - working: true
+        - working: "NA"
           agent: "main"
-          comment: "Painel admin completo implementado com 4 abas: Dashboard, Usuários, Empresas, Moderação. Inclui criação de bots, gestão completa de usuários/empresas, controle de pontos e todas as funcionalidades solicitadas"
+          comment: "Interface para visualizar e criar posts sociais no Connect"
+
+  - task: "Implementar formulário de criação de posts"
+    implemented: false
+    working: "NA"
+    file: "App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Formulário para criar posts de texto e projetos"
+
+  - task: "Implementar sistema de likes e comentários"
+    implemented: false
+    working: "NA"
+    file: "App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Interface para curtir posts e adicionar comentários"
+
+  - task: "Criar seção Featured Portfolios"
+    implemented: false
+    working: "NA"
+    file: "App.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Seção para exibir e votar em portfólios em destaque da semana"
 
 metadata:
   created_by: "main_agent"
