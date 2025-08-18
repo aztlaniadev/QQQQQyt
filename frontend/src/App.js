@@ -1818,7 +1818,7 @@ const Connect = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API}/connect/posts/${postId}/like`, {}, {
+      await axios.post(`${API}/api/connect/posts/${postId}/like`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchConnectData(); // Refresh to show updated likes
