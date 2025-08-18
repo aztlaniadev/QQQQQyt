@@ -1,8 +1,96 @@
+
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API = import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL;
+// Basic UI Components - Inline definitions
+const Button = ({ children, onClick, type = "button", className = "", disabled = false, variant = "default", size = "default", ...props }) => {
+  const baseClasses = "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background";
+  const variants = {
+    default: "bg-primary text-primary-foreground hover:bg-primary/90",
+    outline: "border border-input hover:bg-accent hover:text-accent-foreground"
+  };
+  const sizes = {
+    default: "h-10 py-2 px-4",
+    sm: "h-9 px-3 rounded-md",
+    lg: "h-11 px-8 rounded-md"
+  };
+  
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={`${baseClasses} ${variants[variant] || variants.default} ${sizes[size] || sizes.default} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+
+const Card = ({ children, className = "", ...props }) => (
+  <div className={`rounded-lg border bg-card text-card-foreground shadow-sm ${className}`} {...props}>
+    {children}
+  </div>
+);
+
+const CardHeader = ({ children, className = "", ...props }) => (
+  <div className={`flex flex-col space-y-1.5 p-6 ${className}`} {...props}>
+    {children}
+  </div>
+);
+
+const CardTitle = ({ children, className = "", ...props }) => (
+  <h3 className={`text-2xl font-semibold leading-none tracking-tight ${className}`} {...props}>
+    {children}
+  </h3>
+);
+
+const CardContent = ({ children, className = "", ...props }) => (
+  <div className={`p-6 pt-0 ${className}`} {...props}>
+    {children}
+  </div>
+);
+
+const Input = ({ className = "", type = "text", ...props }) => (
+  <input
+    type={type}
+    className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+    {...props}
+  />
+);
+
+const Label = ({ children, className = "", ...props }) => (
+  <label className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className}`} {...props}>
+    {children}
+  </label>
+);
+
+const Textarea = ({ className = "", ...props }) => (
+  <textarea
+    className={`flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+    {...props}
+  />
+);
+
+// Simple icons as text alternatives
+const LogOut = () => <span>↗</span>;
+const Settings = () => <span>⚙</span>;
+const Crown = () => <span>👑</span>;
+const Check = () => <span>✓</span>;
+const MessageSquare = () => <span>💬</span>;
+const Trophy = () => <span>🏆</span>;
+const Coins = () => <span>🪙</span>;
+const BookOpen = () => <span>📖</span>;
+const Users = () => <span>👥</span>;
+const Briefcase = () => <span>💼</span>;
+const ShoppingCart = () => <span>🛒</span>;
+const Building = () => <span>🏢</span>;
+const Star = () => <span>⭐</span>;
+const Award = () => <span>🏅</span>;
+
+const API = process.env.REACT_APP_BACKEND_URL;
 
 // Auth Context
 const AuthContext = createContext();
