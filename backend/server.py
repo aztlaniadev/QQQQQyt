@@ -429,7 +429,23 @@ async def get_questions(skip: int = 0, limit: int = 50, search: str = None):
         }
     
     questions = await db.questions.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
-    return questions
+    
+    # Convert to serializable format
+    serializable_questions = []
+    for question in questions:
+        # Remove MongoDB _id and ensure all fields are serializable
+        if "_id" in question:
+            del question["_id"]
+        
+        # Convert datetime to string if needed
+        if "created_at" in question and hasattr(question["created_at"], "isoformat"):
+            question["created_at"] = question["created_at"].isoformat()
+        if "updated_at" in question and hasattr(question["updated_at"], "isoformat"):
+            question["updated_at"] = question["updated_at"].isoformat()
+            
+        serializable_questions.append(question)
+    
+    return serializable_questions
 
 @api_router.get("/questions/{question_id}")
 async def get_question(question_id: str):
