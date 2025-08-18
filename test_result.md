@@ -105,35 +105,53 @@
 user_problem_statement: "Implementar o sistema Connect - feed social com posts de usuários, sistema de curtidas, comentários, seguir usuários, e seção 'Portfólios em Destaque da Semana' para networking profissional"
 
 backend:
-  - task: "Criar novos endpoints admin avançados"
-    implemented: true
-    working: true
+  - task: "Implementar modelos Connect (Posts, Likes, Comments)"
+    implemented: false
+    working: "NA"
     file: "server.py"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-        - working: true
+        - working: "NA"
           agent: "main"
-          comment: "Implementados todos os endpoints admin avançados: criação de bots, moderação de usuários/empresas, gestão de pontos, estatísticas avançadas e controle total"
-        - working: true
-          agent: "testing"
-          comment: "✅ TODOS OS ENDPOINTS ADMIN TESTADOS COM SUCESSO: GET /api/admin/users (paginação funcionando), GET /api/admin/companies (listagem OK), GET /api/admin/advanced-stats (estatísticas completas com contadores de moderação), POST /api/admin/create-bot (criação de bots funcionando), POST /api/admin/moderate-user (ban/unban/mute/unmute/silence/unsilence funcionando), POST /api/admin/update-points (atualização de PC/PCon funcionando), POST /api/admin/moderate-company (ban/unban empresas funcionando), DELETE /api/admin/users/{id} (deleção permanente funcionando), DELETE /api/admin/companies/{id} (deleção permanente funcionando). Permissões corretas: usuários normais recebem 403 Forbidden em todos os endpoints admin. Autenticação admin funcionando perfeitamente com admin@teste.com."
+          comment: "Iniciando implementação dos modelos backend para Connect"
 
-  - task: "Atualizar modelos User e Company com campos de moderação"
-    implemented: true
-    working: true
+  - task: "Criar endpoints para posts sociais"
+    implemented: false
+    working: "NA"
     file: "server.py"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Endpoints para criar, listar, curtir posts e comentários"
+
+  - task: "Implementar sistema de seguir usuários"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
         - working: true
           agent: "main"
-          comment: "Modelos atualizados com campos: is_bot, is_banned, is_muted, is_silenced, ban_reason, ban_expires, last_active"
-        - working: true
-          agent: "testing"
-          comment: "✅ CAMPOS DE MODERAÇÃO FUNCIONANDO PERFEITAMENTE: Testado criação de bot (is_bot=true), moderação de usuários (ban/mute/silence com razões e expiração), moderação de empresas (ban/unban), estatísticas avançadas mostrando contadores corretos (muted_users: 1, silenced_users: 1, bot_users: 0 após deleção). Todos os campos sendo persistidos e atualizados corretamente no banco de dados."
+          comment: "Sistema de follow/unfollow já implementado nos endpoints user"
+
+  - task: "Criar endpoints para Featured Portfolios"
+    implemented: false
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Sistema de submissão e votação de portfólios semanais"
 
 frontend:
   - task: "Implementar painel admin avançado com abas"
